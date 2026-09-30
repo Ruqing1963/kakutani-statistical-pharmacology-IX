@@ -1,3 +1,10 @@
-# PDB files are stored and checked out byte-exact so that data/pdb/SHA256SUMS.txt stays valid on every platform
-data/pdb/*.pdb -text
-data/pdb/SHA256SUMS.txt -text
+# Normalise text files to LF in the repository; check them out with native endings.
+* text=auto
+
+# Build artefacts and figures are binary: no line-ending conversion, no textual diff.
+*.pdf binary
+*.png binary
+
+# Generated files, so that the repository language statistics reflect the source.
+results/*.tex linguist-generated=true
+data/*.csv linguist-generated=true
