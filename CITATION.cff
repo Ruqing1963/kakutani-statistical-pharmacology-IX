@@ -11,9 +11,11 @@ authors:
     given-names: Ruqing
     affiliation: "GUT Geoservice Inc., Montreal, Québec, Canada"
     email: ruqing@hotmail.com
-date-released: 2026-09-29
-version: 0.1.0
+date-released: 2026-09-30
+version: 1.0.0
+doi: 10.5281/zenodo.23051518
 license: MIT
+repository-code: "https://github.com/Ruqing1963/kakutani-statistical-pharmacology-IX"
 keywords:
   - Kakutani dichotomy
   - correlated Kakutani index
@@ -42,6 +44,9 @@ preferred-citation:
   year: 2026
   publisher:
     name: Zenodo
+  doi: 10.5281/zenodo.23051518
+  url: "https://doi.org/10.5281/zenodo.23051518"
+  repository-code: "https://github.com/Ruqing1963/kakutani-statistical-pharmacology-IX"
 references:
   - type: article
     title: "Statistical Pharmacology via Kakutani Dichotomy IV: KMS-Gibbs conformational phase transitions, tail allostery, and the four-quadrant ligand classifier"

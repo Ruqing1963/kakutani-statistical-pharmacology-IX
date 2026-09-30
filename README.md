@@ -2,8 +2,7 @@
 
 **Notch-Sparing γ-Secretase Modulators for Alzheimer's Disease: a Second-Order Kakutani Index Screen with a Cone-Geodesic Model of Processive Trimming**
 
-<!-- TODO: replace with the reserved Zenodo DOI before the batch release -->
-[![DOI](https://img.shields.io/badge/DOI-reserved%2C%20pending-lightgrey.svg)](https://doi.org/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23051518.svg)](https://doi.org/10.5281/zenodo.23051518)
 
 Zhengyi Chen<sup>1</sup>, Ruqing Chen<sup>2</sup>
 
@@ -20,9 +19,9 @@ In the language of the series that is a **quadrant-II ligand**: invisible to an 
 
 Experiment 09 is complete and passes all 12 acceptance tests (`results/exp09_console_log.txt`). The companion script passes its 23 checks (`results/paper09_tables_summary.txt`). The unit tests pass: 20 model tests plus the 12 inherited package tests.
 
-The paper is complete: `paper/paper09_ad_gamma_secretase_gsm.tex` and `.pdf`, 23 pages, compiling with zero errors, zero warnings and zero overfull or underfull boxes. Its numbers come from `code/paper09_compute_tables.py`, which reads the CSV files and the console log and writes `results/paper09_tables_summary.txt`, the table rows `results/paper09_table{1,2,3,4a,4b,4c,5,6}_rows.tex` and `results/paper09_tables.json`.
+The paper is complete: `paper/paper09_ad_gamma_secretase_gsm.tex` and `.pdf`, 22 pages, compiling with zero errors, zero warnings and zero overfull or underfull boxes. Its numbers come from `code/paper09_compute_tables.py`, which reads the CSV files and the console log and writes `results/paper09_tables_summary.txt`, the table rows `results/paper09_table{1,2,3,4a,4b,4c,5,6}_rows.tex` and `results/paper09_tables.json`.
 
-The DOI badge above is a placeholder until the Zenodo reservation is made.
+DOI: [10.5281/zenodo.23051518](https://doi.org/10.5281/zenodo.23051518). Repository: [Ruqing1963/kakutani-statistical-pharmacology-IX](https://github.com/Ruqing1963/kakutani-statistical-pharmacology-IX).
 
 ## Structural basis
 
@@ -225,7 +224,8 @@ cd paper && pdflatex paper09_ad_gamma_secretase_gsm.tex   # run three times
   title     = {Statistical Pharmacology via Kakutani Dichotomy IX: Notch-Sparing Gamma-Secretase Modulators for Alzheimer's Disease},
   year      = {2026},
   publisher = {Zenodo},
-  doi       = {10.5281/zenodo.RESERVED}
+  doi       = {10.5281/zenodo.23051518},
+  url       = {https://doi.org/10.5281/zenodo.23051518}
 }
 ```
 

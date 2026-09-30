@@ -416,15 +416,21 @@ def run() -> int:
                     edgecolor=SURFACE, linewidth=0.5, zorder=3, label=f"{q}  {short[q]}")
     axA.axvline(M.K_CAT_MAX, color=AXIS, lw=1.0, ls="--")
     axA.axhline(M.CKI_TM_MIN, color=AXIS, lw=1.0, ls="--")
-    offs_a = {"Semagacestat": (-10, 10, "right"), "Avagacestat": (-10, 10, "right"),
-              "R-Flurbiprofen": (10, -4, "left"), "E2012": (-9, 12, "right"),
-              "KMS-AD-309": (10, -8, "left")}
+    # the quadrant-II cloud is dense, so the two labels that sit inside it get a leader and a
+    # light background box rather than a bare offset
+    offs_a = {"Semagacestat": (-10, 10, "right", False), "Avagacestat": (-10, 10, "right", False),
+              "R-Flurbiprofen": (-12, 15, "right", True), "E2012": (-14, -20, "right", True),
+              "KMS-AD-309": (10, -10, "left", False)}
+    bbox_a = dict(boxstyle="round,pad=0.22", facecolor=SURFACE, edgecolor="none", alpha=0.88)
     for r in rows:
-        dx, dy, ha = offs_a[r["ligand"]]
+        dx, dy, ha, boxed = offs_a[r["ligand"]]
         axA.scatter([r["K_catalytic"]], [r["CKI_TM"]], s=150, marker="*", color=C_COLOR[r["ligand"]],
                     edgecolor=INK, linewidth=0.7, zorder=5)
         axA.annotate(r["ligand"], (r["K_catalytic"], r["CKI_TM"]), textcoords="offset points",
-                     xytext=(dx, dy), ha=ha, fontsize=8, color=INK, fontweight="bold", zorder=6)
+                     xytext=(dx, dy), ha=ha, fontsize=8, color=INK, fontweight="bold", zorder=6,
+                     bbox=bbox_a if boxed else None,
+                     arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.7, shrinkA=1, shrinkB=7)
+                     if boxed else None)
     axA.set_xscale("log")
     axA.set_yscale("log")
     axA.set_xlim(1e-6, 3.0)

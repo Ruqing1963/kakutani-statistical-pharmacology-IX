@@ -118,5 +118,5 @@ Output files (relative to the repository root):
    figures/fig09b_biomarkers_and_fad_rescue.pdf
    results/exp09_console_log.txt
 
-runtime 20.9 s
+runtime 21.1 s
 OVERALL ACCEPTANCE: PASS
