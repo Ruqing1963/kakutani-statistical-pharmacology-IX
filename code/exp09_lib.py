@@ -130,13 +130,21 @@ W_STEP = 1.05            # apo step weight of one helix, in k_B T
 EPS0 = 1.0e-3            # regulariser of the Notch selectivity index
 N_S3 = 3                 # subsites of the S3 register: Notch retention = exp(-N_S3 K_catalytic)
 CKI_TM_REF = 3.20        # reference of the synchrony law; equals the quadrant-II threshold
-R0_42_40 = 0.182         # untreated Abeta42/Abeta40 ratio
+R0_42_40 = 0.182         # untreated (wild-type) Abeta42/Abeta40 ratio
 ETA_R = 0.45             # phenomenological coupling of the ratio law (calibrated, not derived)
+
+# branching kinetics at the E.Abeta42 intermediate of the pathogenic product line
+RHO0 = 3.00              # wild-type apo Abeta38/Abeta42 partition k_42->38 / k_off,42 (biochemical input)
+ETA_CLAMP = 0.22620      # clamp coupling; the one constant fitted, on the wild-type lead anchor below
+R_LEAD_ANCHOR = 0.06978  # R_42/40 of KMS-AD-309 on wild type under the design-brief law, Eq. (3.8)
 
 # acceptance thresholds of the design brief
 K_CAT_MAX = 0.025        # Notch safety constraint
 CKI_TM_MIN = 3.20        # covariance-rearrangement constraint
 NOTCH_MIN = 0.92         # Notch signal retention
+R_FAD_LOW, R_FAD_HIGH = 0.33, 0.36   # reported Abeta42/Abeta40 range of aggressive PSEN1 FAD alleles
+R_RESCUE_MAX = 0.12      # rescue target: back below the healthy wild-type baseline
+NOTCH_RESCUE_MIN = 0.99  # a rescue must not add Notch inhibition of its own
 
 
 # ----------------------------------------------------------------------------
@@ -172,6 +180,37 @@ class LigandSpec:
 APO = LigandSpec("apo", 0.0, 0.0, 0.0, "unliganded reference")
 
 
+@dataclass
+class Background:
+    """A genetic background: wild-type presenilin-1, or a familial-AD PSEN1 allele.
+
+    A FAD mutation is not modelled as a gain of catalytic activity. It is modelled as a loss of
+    stiffness in the parts of the enzyme that hold and advance the substrate, which is what the
+    clinical phenotype of these alleles implies: less processive trimming, earlier release of the
+    long products, and a raised Abeta42/Abeta40 ratio.
+    """
+    name: str
+    label: str
+    path_soft: dict = field(default_factory=dict)   # multiplier on a segment's backbone stiffness
+    gate_int: float = 1.0                           # multiplier on the TM6a-PAL coupling
+    gate_chan: float = 1.0                          # multiplier on the gate-channel couplings
+    pack: float = 1.0                               # multiplier on the channel packing contacts
+    note: str = ""
+
+
+WILD_TYPE = Background("wild type", "WT", note="reference presenilin-1")
+PS1_L166P = Background(
+    "PS1-L166P", "FAD",
+    path_soft={"TM3": 0.14, "TM6": 0.36}, pack=0.65, gate_chan=0.55,
+    note="helix-breaking proline in TM3; among the most aggressive PSEN1 alleles")
+PS1_E280A = Background(
+    "PS1-E280A", "FAD",
+    path_soft={"TM6a": 0.20, "PAL": 0.40}, gate_int=0.60, gate_chan=0.70,
+    note="TM6-TM7 hydrophilic loop, adjacent to TM6a; the Antioquia kindred allele")
+BACKGROUNDS = (WILD_TYPE, PS1_L166P, PS1_E280A)
+FAD_BACKGROUNDS = (PS1_L166P, PS1_E280A)
+
+
 def _force_patterns() -> dict[str, np.ndarray]:
     """Fixed unit-norm binding-force patterns, drawn once from a seeded generator."""
     rng = np.random.default_rng(SEED_MODEL)
@@ -187,9 +226,13 @@ def _force_patterns() -> dict[str, np.ndarray]:
 FORCE = _force_patterns()
 
 
-def stiffness(spec: LigandSpec = APO) -> np.ndarray:
-    """Stiffness matrix K(L) of the harmonic model, in units of k_B T per squared displacement."""
-    soft = {name: 1.0 for name in SEG}
+def stiffness(spec: LigandSpec = APO, bg: Background = WILD_TYPE) -> np.ndarray:
+    """Stiffness matrix K(L, b) of the harmonic model, in units of k_B T per squared displacement.
+
+    The background acts first, softening the backbone of the segments it names and weakening the
+    couplings it names; the ligand then acts on top of the resulting force field.
+    """
+    soft = {name: bg.path_soft.get(name, 1.0) for name in SEG}
     soft["TM6a"] -= SOFT_GATE * spec.s_gate
     soft["TM3"] -= SOFT_CHAN * spec.s_chan
     soft["TM6"] -= SOFT_CHAN * spec.s_chan
@@ -201,8 +244,8 @@ def stiffness(spec: LigandSpec = APO) -> np.ndarray:
         for i in range(sl.start, sl.stop - 1):
             _add(K, i, i + 1, w)
 
-    for groups, w in ((CHANNEL_PACKING, K_PACK), (GATE_CONTACTS, K_GATE_INT),
-                      (GATE_CHANNEL_CONTACTS, K_GATE_CHAN), (CAT_INTERNAL, K_CAT_INT),
+    for groups, w in ((CHANNEL_PACKING, K_PACK * bg.pack), (GATE_CONTACTS, K_GATE_INT * bg.gate_int),
+                      (GATE_CHANNEL_CONTACTS, K_GATE_CHAN * bg.gate_chan), (CAT_INTERNAL, K_CAT_INT),
                       (CAT_CHANNEL_CONTACTS, K_CAT_CHAN), (CAT_GATE_CONTACTS, K_CAT_GATE)):
         for a, b, m in groups:
             for i, j in _pairs(a, b, m):
@@ -232,19 +275,20 @@ class Ensemble:
     mu: np.ndarray
     Sigma: np.ndarray
     K: np.ndarray = field(repr=False, default=None)
+    bg: Background = field(default_factory=lambda: WILD_TYPE)
 
     def block(self, sl: slice) -> tuple[np.ndarray, np.ndarray]:
         """Marginal of a coordinate block: a Gaussian marginal is the sub-block of Sigma."""
         return self.mu[sl], self.Sigma[sl, sl]
 
 
-def ensemble(spec: LigandSpec = APO) -> Ensemble:
-    K = stiffness(spec)
+def ensemble(spec: LigandSpec = APO, bg: Background = WILD_TYPE) -> Ensemble:
+    K = stiffness(spec, bg)
     c = cho_factor(K, lower=True, check_finite=False)
     Sigma = cho_solve(c, np.eye(N_DOF), check_finite=False)
     Sigma = 0.5 * (Sigma + Sigma.T)
     mu = cho_solve(c, binding_force(spec), check_finite=False)
-    return Ensemble(spec, mu, Sigma, K)
+    return Ensemble(spec, mu, Sigma, K, bg)
 
 
 def leakage(holo: Ensemble, apo: Ensemble) -> float:
@@ -362,6 +406,29 @@ def synchrony(cki_tm: float) -> float:
     return float(-np.expm1(-cki_tm / CKI_TM_REF))
 
 
+def branching(gamma: float, ddg_kcal: float) -> tuple[float, float]:
+    """Branching kinetics at the E.Abeta42 intermediate of the pathogenic product line.
+
+    Along that line the enzyme reaches E.Abeta42 and then either releases the pathogenic peptide,
+
+        k_off,42  = k_off,42^(0) exp(-eta_clamp * Gamma),
+
+    or completes one more synchronous three-residue cut to the benign Abeta38,
+
+        k_42->38  = k_42->38^(0) exp(ddG / k_B T).
+
+    Their ratio is the branching partition rho = k_42->38 / k_off,42, which is the Abeta38/Abeta42
+    product ratio. If the flux into the intermediate and the Abeta40 output of the other product
+    line are unchanged, the fraction of that flux released as Abeta42 is 1/(1 + rho), so
+
+        R_42/40 = R_0 (1 + rho_0) / (1 + rho).
+
+    Returns (rho, R_42/40). At Gamma = 0 and ddG = 0 this returns (rho_0, R_0) exactly.
+    """
+    rho = RHO0 * math.exp(ETA_CLAMP * gamma + ddg_kcal / KT_KCAL)
+    return rho, R0_42_40 * (1.0 + RHO0) / (1.0 + rho)
+
+
 def quadrant(k_catalytic: float, cki_tm: float) -> str:
     """Four-quadrant class in the (K_catalytic, CKI_TM) plane, in the convention of Paper IV."""
     hi_cat = k_catalytic > K_CAT_MAX
@@ -377,41 +444,86 @@ QUADRANT_NAME = {
 }
 
 
-def metrics(spec: LigandSpec, apo: Ensemble | None = None) -> dict:
-    """All read-outs of one ligand. Imports the index estimators of the package lazily so that
-    the library can be imported without the package on the path."""
+def _clamp_term(state: Ensemble, ref: Ensemble) -> dict:
+    """One signed contribution to the clamp on the substrate, for `state` measured against `ref`.
+
+    The correlated index is a distance and cannot tell a ligand that stiffens the processive path
+    from a mutation that loosens it. The sign is supplied by the step weights, which are directed:
+    zeta = +1 when the state raises the mean step weight above the reference, -1 when it lowers it.
+    The clamp contribution is then
+
+        Gamma = zeta (CKI_cov - sigma d_cone),        ddG = zeta sigma k_B T (sum_j w_j - d_cone),
+
+    both of which vanish when the state equals the reference.
+    """
     from kakutani_pharma import compute_cki
 
-    if apo is None:
-        apo = ensemble(APO)
-    holo = ensemble(spec)
-    cat = compute_cki(*apo.block(SL_CAT), *holo.block(SL_CAT))
-    tm = compute_cki(*apo.block(SL_MACHINERY), *holo.block(SL_MACHINERY))
-
-    w = step_weights(holo, apo)
+    tm = compute_cki(*ref.block(SL_MACHINERY), *state.block(SL_MACHINERY))
+    w0 = float(step_weights(ref, ref).mean())          # W_STEP by construction
+    w = step_weights(state, ref)
     d_cone = cone_geodesic(w)
     w_sum = float(w.sum())
     sigma = synchrony(tm.total)
-    d_cone_eff = sigma * d_cone                      # cone penalty actually paid, in index units
-    ddg_barrier = sigma * KT_KCAL * (w_sum - d_cone)  # Abeta42 -> Abeta38 barrier discount, kcal/mol
-    cki_cov = tm.cov_term
-    r_ratio = R0_42_40 * math.exp(-ETA_R * (cki_cov - d_cone_eff))
+    zeta = 1.0 if float(w.mean()) >= w0 else -1.0
+    return {"tm": tm, "w": w, "w_sum": w_sum, "w_mean": float(w.mean()), "d_cone": d_cone,
+            "sigma": sigma, "d_cone_eff": sigma * d_cone, "zeta": zeta,
+            "Gamma": zeta * (tm.cov_term - sigma * d_cone),
+            "ddG": zeta * sigma * KT_KCAL * (w_sum - d_cone)}
+
+
+def metrics(spec: LigandSpec, apo: Ensemble | None = None, bg: Background = WILD_TYPE) -> dict:
+    """All read-outs of one state, a ligand acting on a genetic background.
+
+    The clamp on the substrate is additive over the two perturbations, each measured against its own
+    reference and carrying its own sign:
+
+        Gamma(b, L) = Gamma_background(b vs wild type) + Gamma_ligand(L on b vs b untreated).
+
+    Measuring both against the wild type instead would let a mutation's own large rearrangement be
+    counted as a benefit once a ligand flipped the overall sign, and a weak modulator would appear
+    to rescue a severe allele. The ligand terms, and the quadrant coordinates, are therefore taken
+    against the background's own untreated ensemble: what a drug does is what it does to the enzyme
+    the patient has. For the wild-type background the background term vanishes identically and every
+    quantity reduces to the single-perturbation case.
+    """
+    from kakutani_pharma import compute_cki
+
+    if apo is None:
+        apo = ensemble(APO, WILD_TYPE)
+    bg_apo = apo if bg is WILD_TYPE else ensemble(APO, bg)
+    holo = ensemble(spec, bg)
+
+    back = _clamp_term(bg_apo, apo)                      # the allele, against wild type
+    lig = _clamp_term(holo, bg_apo)                      # the ligand, against the untreated allele
+    cat = compute_cki(*bg_apo.block(SL_CAT), *holo.block(SL_CAT))
+    tm = lig["tm"]
+
+    gamma = back["Gamma"] + lig["Gamma"]
+    ddg_barrier = back["ddG"] + lig["ddG"]
+    rho, r_branch = branching(gamma, ddg_barrier)
+    r_ratio = R0_42_40 * math.exp(-ETA_R * gamma)        # design-brief law, for comparison
+    w = lig["w"]
 
     return {
-        "ligand": spec.name, "note": spec.note,
+        "ligand": spec.name, "background": bg.name, "note": spec.note,
         "s_cat": spec.s_cat, "s_gate": spec.s_gate, "s_chan": spec.s_chan,
         "K_catalytic": cat.total, "K_cat_mean": cat.mean_term, "K_cat_cov": cat.cov_term,
-        "CKI_TM": tm.total, "CKI_TM_mean": tm.mean_term, "CKI_cov": cki_cov,
+        "CKI_TM": tm.total, "CKI_TM_mean": tm.mean_term, "CKI_cov": tm.cov_term,
         "CKI_TM_comm": tm.comm_term, "CKI_TM_rot": tm.rot_term,
         "S_Notch": tm.total / (cat.total + EPS0),
         "notch_retention": notch_retention(cat.total),
-        "leakage_cat": leakage(holo, apo),
-        "w_TM3": float(w[0]), "w_TM6a": float(w[1]), "w_PAL": float(w[2]), "w_sum": w_sum,
-        "d_cone": d_cone, "d_cone_over_wsum": d_cone / w_sum,
-        "sigma_sync": sigma, "d_cone_eff": d_cone_eff,
-        "ddG_barrier_kcal": ddg_barrier,
+        "leakage_cat": leakage(holo, bg_apo),
+        "w_TM3": float(w[0]), "w_TM6a": float(w[1]), "w_PAL": float(w[2]), "w_sum": lig["w_sum"],
+        "w_mean": lig["w_mean"], "zeta": lig["zeta"], "zeta_bg": back["zeta"],
+        "d_cone": lig["d_cone"], "d_cone_over_wsum": lig["d_cone"] / lig["w_sum"],
+        "sigma_sync": lig["sigma"], "d_cone_eff": lig["d_cone_eff"],
+        "CKI_TM_bg": back["tm"].total, "sigma_bg": back["sigma"], "w_mean_bg": back["w_mean"],
+        "Gamma_bg": back["Gamma"], "Gamma_ligand": lig["Gamma"], "Gamma": gamma,
+        "ddG_bg_kcal": back["ddG"], "ddG_ligand_kcal": lig["ddG"], "ddG_barrier_kcal": ddg_barrier,
         "rate_factor_42_38": math.exp(ddg_barrier / KT_KCAL),
+        "ratio_38_42": rho, "ratio_38_42_fold": rho / RHO0,
         "R_42_40": r_ratio, "R_fold_reduction": R0_42_40 / r_ratio,
+        "R_42_40_branch": r_branch, "R_branch_fold": R0_42_40 / r_branch,
         "pass_notch": int(cat.total < K_CAT_MAX), "pass_cki": int(tm.total > CKI_TM_MIN),
         "quadrant": quadrant(cat.total, tm.total),
     }
@@ -423,8 +535,38 @@ def metrics(spec: LigandSpec, apo: Ensemble | None = None) -> dict:
 COMPOUNDS = (
     LigandSpec("Semagacestat", s_cat=1.00, s_gate=0.05, s_chan=0.05,
                note="orthosteric GSI, transition-state analogue; Phase III failure (IDENTITY)"),
-    LigandSpec("Flurbiprofen", s_cat=0.004, s_gate=0.18, s_chan=0.12,
-               note="first-generation NSAID-derived GSM; weak channel coupling"),
+    LigandSpec("Avagacestat", s_cat=0.28, s_gate=0.32, s_chan=0.28,
+               note="aryl sulfonamide marketed as a Notch-sparing GSI; Phase II, Notch-type adverse events"),
+    LigandSpec("R-Flurbiprofen", s_cat=0.004, s_gate=0.18, s_chan=0.12,
+               note="tarenflurbil, first-generation NSAID-derived GSM; Phase III failure on efficacy"),
+    LigandSpec("E2012", s_cat=0.008, s_gate=0.95, s_chan=0.92,
+               note="second-generation bridged-imidazole GSM class; lowers CSF Abeta42, raises Abeta38"),
     LigandSpec("KMS-AD-309", s_cat=0.02, s_gate=1.00, s_chan=1.00,
                note="Kakutani-spectrum optimised lead; gate and channel coupling, no active-site contact"),
 )
+COMPOUND = {c.name: c for c in COMPOUNDS}
+
+
+def scaled(spec: LigandSpec, m: float) -> LigandSpec:
+    """The same ligand at occupancy m: every strength scaled, which is what raising the exposure
+    of a reversible binder does in this model."""
+    return LigandSpec(f"{spec.name} x{m:.3g}", m * spec.s_cat, m * spec.s_gate, m * spec.s_chan,
+                      note=f"{spec.note} (occupancy {m:.3g})")
+
+
+def rescue_occupancy(spec: LigandSpec, bg: Background, target: float = R_RESCUE_MAX,
+                     apo: Ensemble | None = None, hi: float = 4.0) -> float | None:
+    """Smallest occupancy multiplier m at which the ligand brings R_42/40 of the background down to
+    `target`. Returns None if the target is out of reach at m <= hi."""
+    if apo is None:
+        apo = ensemble(APO, WILD_TYPE)
+
+    def f(m: float) -> float:
+        return metrics(scaled(spec, m), apo, bg)["R_42_40_branch"] - target
+
+    if f(hi) > 0:
+        return None
+    lo = 1e-3
+    if f(lo) < 0:
+        return lo
+    return float(brentq(f, lo, hi, xtol=1e-4))

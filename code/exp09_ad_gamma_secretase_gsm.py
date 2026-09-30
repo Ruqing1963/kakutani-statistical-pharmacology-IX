@@ -71,8 +71,11 @@ def _repo_dir(name: str) -> str:
 CSV_COMPOUNDS = os.path.join(_repo_dir("data"), "exp09_compound_comparison.csv")
 CSV_SCREEN = os.path.join(_repo_dir("data"), "exp09_quadrant_screen.csv")
 CSV_CONE = os.path.join(_repo_dir("data"), "exp09_cone_scan.csv")
+CSV_FAD = os.path.join(_repo_dir("data"), "exp09_fad_rescue.csv")
 FIG_PATH = os.path.join(_repo_dir("figures"), "fig09_ad_gamma_secretase_gsm.png")
 FIG_PATH_PDF = os.path.splitext(FIG_PATH)[0] + ".pdf"
+FIG2_PATH = os.path.join(_repo_dir("figures"), "fig09b_biomarkers_and_fad_rescue.png")
+FIG2_PATH_PDF = os.path.splitext(FIG2_PATH)[0] + ".pdf"
 LOG_PATH = os.path.join(_repo_dir("results"), "exp09_console_log.txt")
 
 SEED_SCREEN = 20260929
@@ -85,7 +88,7 @@ SCREEN_RANGES = {                      # s_cat,           s_gate,          s_cha
 }
 CONE_ANISOTROPY = (0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8)
 TOL_CONE = 1e-12
-TOL_CONSISTENCY = 2.0                  # ratio law against cone barrier, agreement within this factor
+TOL_BRANCH = 0.10                      # branching law against the design-brief law, relative
 
 # ----------------------------------------------------------------------------
 # Figure style (series house style)
@@ -94,7 +97,9 @@ SURFACE, INK, INK_2, MUTED, GRID_C, AXIS = "#fcfcfb", "#0b0b0b", "#52514e", "#89
 BLUE, ORANGE, AQUA, YELLOW, MAGENTA, GREEN, VIOLET, RED = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100",
                                                            "#e87ba4", "#008300", "#4a3aa7", "#e34948")
 Q_COLOR = {"I": VIOLET, "II": ORANGE, "III": MUTED, "IV": RED}
-C_COLOR = {"Semagacestat": RED, "Flurbiprofen": BLUE, "KMS-AD-309": ORANGE}
+C_COLOR = {"Semagacestat": RED, "Avagacestat": MAGENTA, "R-Flurbiprofen": BLUE,
+           "E2012": AQUA, "KMS-AD-309": ORANGE}
+BG_COLOR = {"wild type": INK_2, "PS1-L166P": VIOLET, "PS1-E280A": YELLOW}
 plt.rcParams.update({
     "font.family": ["DejaVu Sans", "sans-serif"], "font.size": 9, "axes.unicode_minus": False,
     "axes.edgecolor": AXIS, "axes.labelcolor": INK_2, "axes.titlecolor": INK, "axes.titleweight": "bold",
@@ -218,23 +223,57 @@ def run() -> int:
         print(f"  {r['ligand']:>14}: {M.QUADRANT_NAME[r['quadrant']]}")
         print(f"  {'':>14}  {r['note']}")
 
-    sema, flur, lead = by["Semagacestat"], by["Flurbiprofen"], by["KMS-AD-309"]
+    # ---------- 3b. the two clinical biomarkers from the branching model ----------
+    print("\n[3b] Branching kinetics at the E.Abeta42 intermediate: the two clinical read-outs")
+    print(f"  rho_0 = {M.RHO0} (wild-type Abeta38/Abeta42), eta_clamp = {M.ETA_CLAMP}, "
+          f"anchored on KMS-AD-309 at R = {M.R_LEAD_ANCHOR}")
+    print(f"  {'compound':>14} {'Gamma':>8} {'ddG':>8} {'Abeta38/42':>11} {'x WT':>7} "
+          f"{'R_42/40 (branch)':>17} {'fold':>7} {'R (brief law)':>14} {'disagreement':>13}")
+    apo_row = M.metrics(M.APO, apo)
+    for r in [apo_row] + rows:
+        disc = abs(r["R_branch_fold"] / r["R_fold_reduction"] - 1)
+        print(f"  {r['ligand']:>14} {r['Gamma']:>8.4f} {r['ddG_barrier_kcal']:>8.4f} "
+              f"{r['ratio_38_42']:>11.4f} {r['ratio_38_42_fold']:>7.3f} {r['R_42_40_branch']:>17.5f} "
+              f"{r['R_branch_fold']:>6.3f}x {r['R_42_40']:>14.5f} {100 * disc:>12.2f}%")
+    max_disc = max(abs(r["R_branch_fold"] / r["R_fold_reduction"] - 1) for r in rows)
+    passed = max_disc < TOL_BRANCH and abs(apo_row["ratio_38_42"] - M.RHO0) < 1e-12 \
+        and abs(apo_row["R_42_40_branch"] - M.R0_42_40) < 1e-12
+    ok_all &= passed
+    print(f"  Acceptance: the branching law returns (rho_0, R_0) exactly at apo and agrees with the "
+          f"design-brief law to {100 * max_disc:.2f}% (< {100 * TOL_BRANCH:.0f}%) on all "
+          f"{len(rows)} compounds  {'PASS' if passed else 'FAIL'}")
+
+    sema, avag = by["Semagacestat"], by["Avagacestat"]
+    flur, e2012, lead = by["R-Flurbiprofen"], by["E2012"], by["KMS-AD-309"]
     passed = (sema["quadrant"] == "IV" and sema["notch_retention"] < M.NOTCH_MIN
+              and avag["quadrant"] == "IV" and avag["notch_retention"] < M.NOTCH_MIN
               and flur["quadrant"] == "III" and flur["notch_retention"] > M.NOTCH_MIN
+              and e2012["quadrant"] == "II" and e2012["notch_retention"] > M.NOTCH_MIN
               and lead["quadrant"] == "II" and lead["notch_retention"] > M.NOTCH_MIN
               and lead["K_catalytic"] < M.K_CAT_MAX and lead["CKI_TM"] > M.CKI_TM_MIN)
     ok_all &= passed
-    print(f"\n  Acceptance: Semagacestat in IV with retention {100 * sema['notch_retention']:.2f}% < 92%, "
-          f"Flurbiprofen in III (CKI_TM {flur['CKI_TM']:.3f} < {M.CKI_TM_MIN}), "
-          f"KMS-AD-309 in II (K_cat {lead['K_catalytic']:.2e} < {M.K_CAT_MAX}, CKI_TM {lead['CKI_TM']:.3f} "
-          f"> {M.CKI_TM_MIN}, retention {100 * lead['notch_retention']:.2f}%)  {'PASS' if passed else 'FAIL'}")
+    print(f"\n  Acceptance: Semagacestat in IV (retention {100 * sema['notch_retention']:.2f}%), "
+          f"Avagacestat in IV despite its Notch-sparing label (K_cat {avag['K_catalytic']:.3f} = "
+          f"{avag['K_catalytic'] / M.K_CAT_MAX:.1f}x the threshold, retention "
+          f"{100 * avag['notch_retention']:.2f}%), R-Flurbiprofen in III (CKI_TM {flur['CKI_TM']:.3f}), "
+          f"E2012 and KMS-AD-309 in II  {'PASS' if passed else 'FAIL'}")
+
+    passed = (e2012["R_branch_fold"] > 2.0 and e2012["ratio_38_42_fold"] > 2.0
+              and lead["R_branch_fold"] > 2.0 and lead["ratio_38_42_fold"] > 2.0
+              and sema["R_branch_fold"] < 1.05 and sema["ratio_38_42_fold"] < 1.05
+              and avag["ratio_38_42_fold"] < 1.30)
+    ok_all &= passed
+    print(f"  Acceptance: the two clinical biomarkers move together for a modulator and not at all for "
+          f"an inhibitor: E2012 {e2012['R_branch_fold']:.2f}x down / {e2012['ratio_38_42_fold']:.2f}x up, "
+          f"KMS-AD-309 {lead['R_branch_fold']:.2f}x / {lead['ratio_38_42_fold']:.2f}x, Semagacestat "
+          f"{sema['R_branch_fold']:.3f}x / {sema['ratio_38_42_fold']:.3f}x  {'PASS' if passed else 'FAIL'}")
 
     passed = lead["S_Notch"] > flur["S_Notch"] > sema["S_Notch"] and lead["S_Notch"] / sema["S_Notch"] > 1e3
     ok_all &= passed
-    print(f"  Acceptance: S_Notch ordering lead {lead['S_Notch']:.1f} > Flurbiprofen {flur['S_Notch']:.1f} "
+    print(f"  Acceptance: S_Notch ordering lead {lead['S_Notch']:.1f} > R-Flurbiprofen {flur['S_Notch']:.1f} "
           f"> Semagacestat {sema['S_Notch']:.4f}, lead/Semagacestat = {lead['S_Notch'] / sema['S_Notch']:.3g} "
           f"(> 1e3)  {'PASS' if passed else 'FAIL'}")
-    print(f"  Note: S_Notch saturates at CKI_TM / eps_0 as K_catalytic -> 0, so Flurbiprofen scores "
+    print(f"  Note: S_Notch saturates at CKI_TM / eps_0 as K_catalytic -> 0, so R-Flurbiprofen scores "
           f"{flur['S_Notch']:.0f} while failing constraint (2). The index ranks, the two absolute "
           f"constraints select.")
 
@@ -242,15 +281,8 @@ def run() -> int:
               and flur["R_fold_reduction"] < 1.10)
     ok_all &= passed
     print(f"  Acceptance: R_42/40 reduction lead {lead['R_fold_reduction']:.2f}x (> 2), Semagacestat "
-          f"{sema['R_fold_reduction']:.3f}x (< 1.05, an inhibitor does not shift the ratio), Flurbiprofen "
+          f"{sema['R_fold_reduction']:.3f}x (< 1.05, an inhibitor does not shift the ratio), R-Flurbiprofen "
           f"{flur['R_fold_reduction']:.3f}x (< 1.10)  {'PASS' if passed else 'FAIL'}")
-
-    ratio = lead["R_fold_reduction"] / lead["rate_factor_42_38"]
-    passed = 1 / TOL_CONSISTENCY <= ratio <= TOL_CONSISTENCY
-    ok_all &= passed
-    print(f"  Acceptance: the two independent routes agree: ratio law {lead['R_fold_reduction']:.2f}x against "
-          f"cone-barrier rate factor exp(ddG / kT) = {lead['rate_factor_42_38']:.2f}x, quotient {ratio:.2f} "
-          f"(within {TOL_CONSISTENCY:.0f}x)  {'PASS' if passed else 'FAIL'}")
 
     passed = lead["leakage_cat"] < 0.10 and sema["leakage_cat"] > 0.10
     ok_all &= passed
@@ -305,10 +337,75 @@ def run() -> int:
     print(f"  Acceptance: the sampling realises all four quadrants, quadrant II is invisible to the activity "
           f"assay, and every assay hit carries a Notch liability  {'PASS' if passed else 'FAIL'}")
 
-    # ---------- 5. figure ----------
-    print("\n[5] Figure")
+    # ---------- 5. familial AD: gate destabilisation and allosteric rescue ----------
+    print("\n[5] Familial AD: PSEN1 gate destabilisation and allosteric rescue")
+    fad_rows = []
+    for bg in M.BACKGROUNDS:
+        for spec in (M.APO,) + M.COMPOUNDS:
+            r = M.metrics(spec, apo, bg)
+            r |= {"rescue_occupancy": None}
+            if bg is not M.WILD_TYPE and spec is not M.APO:
+                r["rescue_occupancy"] = M.rescue_occupancy(spec, bg, apo=apo)
+            fad_rows.append(r)
+    write_csv(CSV_FAD, [{k: ("" if v is None else v) for k, v in r.items()} for r in fad_rows])
+    fad = {(r["background"], r["ligand"]): r for r in fad_rows}
+
+    print(f"  {'background':>11} {'ligand':>15} {'CKI_TM':>8} {'Gamma_bg':>9} {'Gamma_L':>9} "
+          f"{'Abeta38/42':>11} {'R_42/40':>9} {'vs FAD':>7} {'Notch ret.':>11} {'m* for R<0.12':>14}")
+    for bg in M.BACKGROUNDS:
+        base = fad[(bg.name, "apo")]["R_42_40_branch"]
+        for spec in (M.APO,) + M.COMPOUNDS:
+            r = fad[(bg.name, spec.name)]
+            mstar = r["rescue_occupancy"]
+            ms = f"{mstar:.3f}" if mstar else ("--" if spec is M.APO else "> 4")
+            print(f"  {bg.name:>11} {r['ligand']:>15} {r['CKI_TM']:>8.4f} {r['Gamma_bg']:>9.4f} "
+                  f"{r['Gamma_ligand']:>9.4f} {r['ratio_38_42']:>11.4f} {r['R_42_40_branch']:>9.5f} "
+                  f"{base / r['R_42_40_branch']:>6.2f}x {100 * r['notch_retention']:>10.2f}% {ms:>14}")
+
+    fad_apo = [fad[(b.name, "apo")] for b in M.FAD_BACKGROUNDS]
+    passed = all(M.R_FAD_LOW <= r["R_42_40_branch"] <= M.R_FAD_HIGH for r in fad_apo) \
+        and all(r["zeta_bg"] < 0 and r["ratio_38_42"] < M.RHO0 for r in fad_apo)
+    ok_all &= passed
+    print(f"\n  Acceptance: the untreated FAD alleles loosen the processive path (zeta = -1), lower "
+          f"Abeta38/Abeta42 below the wild-type {M.RHO0:.1f}, and raise R_42/40 into the reported range "
+          f"[{M.R_FAD_LOW}, {M.R_FAD_HIGH}]: "
+          + ", ".join(f"{r['background']} {r['R_42_40_branch']:.4f}" for r in fad_apo)
+          + f"  {'PASS' if passed else 'FAIL'}")
+
+    resc = [fad[(b.name, c)] for b in M.FAD_BACKGROUNDS for c in ("KMS-AD-309", "E2012")]
+    passed = all(r["R_42_40_branch"] < M.R0_42_40 and r["notch_retention"] > M.NOTCH_RESCUE_MIN
+                 and r["Gamma"] > 0 for r in resc)
+    ok_all &= passed
+    print(f"  Acceptance: both quadrant-II modulators reverse the sign of the clamp on both alleles and "
+          f"bring R_42/40 below the wild-type baseline {M.R0_42_40} while keeping Notch retention above "
+          f"{100 * M.NOTCH_RESCUE_MIN:.0f}%: "
+          + ", ".join(f"{r['background']}+{r['ligand']} {r['R_42_40_branch']:.4f} "
+                      f"({100 * r['notch_retention']:.2f}%)" for r in resc)
+          + f"  {'PASS' if passed else 'FAIL'}")
+
+    m_stars = [r["rescue_occupancy"] for r in resc]
+    passed = all(m is not None and m < 1.5 for m in m_stars)
+    ok_all &= passed
+    print(f"  Acceptance: the stricter target R_42/40 < {M.R_RESCUE_MAX} is reached at an occupancy below "
+          f"1.5x nominal in every case: "
+          + ", ".join(f"{r['background']}+{r['ligand']} {m:.3f}x" for r, m in zip(resc, m_stars))
+          + f"  {'PASS' if passed else 'FAIL'}")
+
+    failers = [fad[(b.name, c)] for b in M.FAD_BACKGROUNDS for c in ("R-Flurbiprofen", "Semagacestat")]
+    passed = all(r["Gamma"] < 0 and r["rescue_occupancy"] is None for r in failers) \
+        and all(fad[(b.name, "Semagacestat")]["notch_retention"] < M.NOTCH_MIN for b in M.FAD_BACKGROUNDS)
+    ok_all &= passed
+    print(f"  Acceptance: neither the weak first-generation GSM nor the inhibitor rescues either allele at "
+          f"any occupancy up to 4x, and the inhibitor additionally destroys Notch signalling: "
+          + ", ".join(f"{r['background']}+{r['ligand']} {r['R_42_40_branch']:.4f} "
+                      f"({100 * r['notch_retention']:.1f}%)" for r in failers)
+          + f"  {'PASS' if passed else 'FAIL'}")
+
+    # ---------- 6. figures ----------
+    print("\n[6] Figures")
     fig, axes = plt.subplots(2, 2, figsize=(11.2, 8.4))
     axA, axB, axC, axD = axes.ravel()
+    fig2, (axE, axF) = plt.subplots(1, 2, figsize=(11.2, 4.9))
 
     # A: phase diagram
     short = {"I": "non-selective allosteric inhibitor", "II": "Notch-sparing GSM (target)",
@@ -319,8 +416,9 @@ def run() -> int:
                     edgecolor=SURFACE, linewidth=0.5, zorder=3, label=f"{q}  {short[q]}")
     axA.axvline(M.K_CAT_MAX, color=AXIS, lw=1.0, ls="--")
     axA.axhline(M.CKI_TM_MIN, color=AXIS, lw=1.0, ls="--")
-    offs_a = {"Semagacestat": (-10, 10, "right"), "Flurbiprofen": (10, -4, "left"),
-              "KMS-AD-309": (10, -4, "left")}
+    offs_a = {"Semagacestat": (-10, 10, "right"), "Avagacestat": (-10, 10, "right"),
+              "R-Flurbiprofen": (10, -4, "left"), "E2012": (-9, 12, "right"),
+              "KMS-AD-309": (10, -8, "left")}
     for r in rows:
         dx, dy, ha = offs_a[r["ligand"]]
         axA.scatter([r["K_catalytic"]], [r["CKI_TM"]], s=150, marker="*", color=C_COLOR[r["ligand"]],
@@ -352,8 +450,9 @@ def run() -> int:
                 color=[Q_COLOR[r["quadrant"]] for r in screen], alpha=0.75, zorder=3)
     # labels are parked in the empty lower-left region and tied to their markers by thin leaders,
     # so that none of them sits on the 92 % floor, the K_catalytic threshold or the curve
-    pos_b = {"Semagacestat": (0.105, 0.285, "left"), "Flurbiprofen": (2.2e-6, 0.700, "left"),
-             "KMS-AD-309": (2.0e-4, 0.455, "left")}
+    pos_b = {"Semagacestat": (0.020, 0.235, "left"), "Avagacestat": (0.020, 0.405, "left"),
+             "R-Flurbiprofen": (2.2e-6, 0.760, "left"), "E2012": (2.2e-6, 0.585, "left"),
+             "KMS-AD-309": (2.4e-4, 0.420, "left")}
     for r in rows:
         xl, yl, ha = pos_b[r["ligand"]]
         axB.scatter([r["K_catalytic"]], [r["notch_retention"]], s=150, marker="*",
@@ -379,10 +478,12 @@ def run() -> int:
     axC.bar(x - 0.19, w_sums, width=0.36, color=MUTED, label=r"sequential $\sum_j w_j$")
     axC.bar(x + 0.19, d_cones, width=0.36, color=AQUA, label=r"cone geodesic $d_L^{\mathrm{cone}}$")
     for xi, ws, dc, s in zip(x, w_sums, d_cones, sig):
-        axC.annotate(f"discount {ws - dc:.3f} $k_BT$\n$\\sigma$ = {s:.2f}", (xi, ws),
-                     textcoords="offset points", xytext=(0, 7), ha="center", fontsize=7.5, color=INK_2)
+        axC.annotate(f"{ws - dc:.3f} $k_BT$\n$\\sigma$ = {s:.2f}", (xi, ws),
+                     textcoords="offset points", xytext=(0, 7), ha="center", fontsize=7, color=INK_2)
     axC.set_xticks(x)
-    axC.set_xticklabels(labels, fontsize=8)
+    axC.set_xticklabels([l.replace("R-Flurbiprofen", "R-Flurbi.").replace("Semagacestat", "Semaga.")
+                         .replace("Avagacestat", "Avaga.").replace("KMS-AD-309", "KMS-309")
+                         for l in labels], fontsize=7.5)
     axC.set_ylabel(r"cost of the three-residue step  ($k_B T$)")
     axC.set_ylim(0, max(w_sums) * 1.45)
     axC.set_title(r"C  Cone geodesic on $\{0,1\}^3$:  $d_L^{\mathrm{cone}} = 2.284457\,w < 3w$")
@@ -396,8 +497,9 @@ def run() -> int:
     axD.axhline(M.R0_42_40, color=AXIS, lw=1.0, ls="--")
     axD.scatter([r["CKI_cov"] - r["d_cone_eff"] for r in screen], [r["R_42_40"] for r in screen], s=12,
                 color=[Q_COLOR[r["quadrant"]] for r in screen], alpha=0.75, zorder=3)
-    offs_d = {"Semagacestat": (14, 8, "left"), "Flurbiprofen": (14, -22, "left"),
-              "KMS-AD-309": (14, 6, "left")}
+    offs_d = {"Semagacestat": (12, 10, "left"), "Avagacestat": (12, -20, "left"),
+              "R-Flurbiprofen": (12, -6, "left"), "E2012": (-8, -22, "right"),
+              "KMS-AD-309": (12, 8, "left")}
     for r in rows:
         xv = r["CKI_cov"] - r["d_cone_eff"]
         dx, dy, ha = offs_d[r["ligand"]]
@@ -412,13 +514,80 @@ def run() -> int:
     axD.legend(loc="upper right", fontsize=8)
     tidy(axD)
 
+    # E: the two clinical biomarkers, from the branching model
+    gx = np.linspace(-4.0, 3.2, 400)
+    curve = [M.branching(g, 0.0) for g in gx]
+    axE.plot([c[1] for c in curve], [c[0] for c in curve], color=INK_2, lw=1.6, zorder=2,
+             label=r"branching law, $\Delta\Delta G^{\ddagger} = 0$")
+    axE.axvline(M.R0_42_40, color=AXIS, lw=1.0, ls="--")
+    axE.axhline(M.RHO0, color=AXIS, lw=1.0, ls="--")
+    offs_e = {"Semagacestat": (-10, 12, "right"), "Avagacestat": (-10, 10, "right"),
+              "R-Flurbiprofen": (-10, -18, "right"), "E2012": (12, -14, "left"),
+              "KMS-AD-309": (12, 4, "left")}
+    for r in rows:
+        dx, dy, ha = offs_e[r["ligand"]]
+        axE.scatter([r["R_42_40_branch"]], [r["ratio_38_42"]], s=150, marker="*",
+                    color=C_COLOR[r["ligand"]], edgecolor=INK, linewidth=0.7, zorder=5)
+        axE.annotate(r["ligand"], (r["R_42_40_branch"], r["ratio_38_42"]), textcoords="offset points",
+                     xytext=(dx, dy), ha=ha, fontsize=8, color=INK, fontweight="bold", zorder=6)
+    offs_fad_e = {"PS1-L166P": (-12, 14, "right"), "PS1-E280A": (10, -14, "left")}
+    for b in M.FAD_BACKGROUNDS:
+        r = fad[(b.name, "apo")]
+        dx, dy, ha = offs_fad_e[b.name]
+        axE.scatter([r["R_42_40_branch"]], [r["ratio_38_42"]], s=110, marker="X",
+                    color=BG_COLOR[b.name], edgecolor=INK, linewidth=0.7, zorder=5)
+        axE.annotate(f"{b.name}\nuntreated", (r["R_42_40_branch"], r["ratio_38_42"]),
+                     textcoords="offset points", xytext=(dx, dy), ha=ha, fontsize=7.5, color=INK,
+                     fontweight="bold", zorder=6)
+    axE.set_xscale("log")
+    axE.set_yscale("log")
+    axE.set_xlabel(r"$R_{42/40}$   (pathogenic ratio, falls with a modulator)")
+    axE.set_ylabel(r"$\mathrm{A}\beta_{38}/\mathrm{A}\beta_{42}$   (rises with a modulator)")
+    axE.set_title("A  The two clinical biomarkers move together")
+    axE.legend(loc="upper right", fontsize=8)
+    tidy(axE)
+
+    # F: familial AD and its rescue
+    f_labels, f_vals, f_cols = [], [], []
+    for b in M.FAD_BACKGROUNDS:
+        f_labels.append(f"{b.name}\nuntreated")
+        f_vals.append(fad[(b.name, "apo")]["R_42_40_branch"])
+        f_cols.append(BG_COLOR[b.name])
+        for c in ("Semagacestat", "R-Flurbiprofen", "E2012", "KMS-AD-309"):
+            f_labels.append(f"+{c.replace('R-Flurbiprofen', 'R-Flurbi.').replace('Semagacestat', 'Semaga.')}")
+            f_vals.append(fad[(b.name, c)]["R_42_40_branch"])
+            f_cols.append(C_COLOR[c])
+    xf = np.arange(len(f_vals))
+    axF.bar(xf, f_vals, color=f_cols, edgecolor=SURFACE, linewidth=0.6, zorder=3)
+    axF.axhline(M.R0_42_40, color=GREEN, lw=1.1, ls="--", zorder=4)
+    axF.axhline(M.R_RESCUE_MAX, color=AQUA, lw=1.1, ls=":", zorder=4)
+    axF.set_xlim(-2.5, len(f_vals) - 0.4)          # a clear strip on the left for the two rules
+    axF.text(-2.35, M.R0_42_40 + 0.007, f"wild type\n{M.R0_42_40}", ha="left", va="bottom",
+             fontsize=7.5, color=GREEN)
+    axF.text(-2.35, M.R_RESCUE_MAX + 0.007, f"target\n{M.R_RESCUE_MAX}", ha="left", va="bottom",
+             fontsize=7.5, color=AQUA)
+    for xi, v in zip(xf, f_vals):
+        axF.annotate(f"{v:.3f}", (xi, v), textcoords="offset points", xytext=(0, 3), ha="center",
+                     fontsize=6.5, color=INK_2)
+    axF.set_xticks(xf)
+    axF.set_xticklabels(f_labels, fontsize=6.5, rotation=45, ha="right")
+    axF.set_ylabel(r"$R_{42/40}$")
+    axF.set_ylim(0, max(f_vals) * 1.22)
+    axF.set_title("B  Familial AD alleles and their allosteric rescue")
+    tidy(axF)
+
     fig.tight_layout()
     fig.savefig(FIG_PATH, dpi=200)
     fig.savefig(FIG_PATH_PDF)
     plt.close(fig)
+    fig2.tight_layout()
+    fig2.savefig(FIG2_PATH, dpi=200)
+    fig2.savefig(FIG2_PATH_PDF)
+    plt.close(fig2)
 
     print("\nOutput files (relative to the repository root):")
-    for pth in (CSV_COMPOUNDS, CSV_SCREEN, CSV_CONE, FIG_PATH, FIG_PATH_PDF, LOG_PATH):
+    for pth in (CSV_COMPOUNDS, CSV_SCREEN, CSV_CONE, CSV_FAD, FIG_PATH, FIG_PATH_PDF,
+                FIG2_PATH, FIG2_PATH_PDF, LOG_PATH):
         print("  ", os.path.relpath(pth, ROOT).replace(os.sep, "/"))
     print(f"\nruntime {time.time() - t0:.1f} s")
     print("OVERALL ACCEPTANCE:", "PASS" if ok_all else "FAIL")

@@ -30,18 +30,24 @@ Paper IX companion: tables and checks
   monotonicity on 2001 points a in [0, 0.999]: min increment 6.712e-08 (> 0: True), d_cone rises from 2.398680 to 2.729042 kT
   evenness d_cone(w(a)) = d_cone(w(-a)) to 0.00e+00 (the family is a permutation of itself), so a = 0 is a critical point
   bounds on the 240 screened ligands and the three compounds: max_j w_j <= d_cone < sum_j w_j
-    holds in 243/243 cases: True
+    holds in 245/245 cases: True
   well-posedness margin of the recursion (Theorem 3.1 hypothesis): min over the anisotropy family 0.000072, min over all 243 ligands 0.979027 (both >= 0)
 
-[Table 4] The three reference compounds
+[Table 4] The 5 reference compounds
     Semagacestat: K_cat 6.7221e-01, retention 13.31%, CKI_TM 0.0344 (rot 0.0286 = 83.35% of the covariance term), S_Notch 0.05104, quadrant IV
                   sum w 3.2680, d_cone 2.4886, sigma 0.0107, ddG 0.0051 kcal/mol, k-factor 1.008, R_42/40 0.18136 (1.00x), leakage 0.4436
-    Flurbiprofen: K_cat 7.3418e-05, retention 99.98%, CKI_TM 0.2194 (rot 0.1919 = 87.49% of the covariance term), S_Notch 204.4, quadrant III
+     Avagacestat: K_cat 1.4378e-01, retention 64.96%, CKI_TM 0.7130 (rot 0.6482 = 90.93% of the covariance term), S_Notch 4.924, quadrant IV
+                  sum w 3.5888, d_cone 2.7331, sigma 0.1997, ddG 0.1053 kcal/mol, k-factor 1.186, R_42/40 0.16883 (1.08x), leakage 0.2810
+  R-Flurbiprofen: K_cat 7.3418e-05, retention 99.98%, CKI_TM 0.2194 (rot 0.1919 = 87.49% of the covariance term), S_Notch 204.4, quadrant III
                   sum w 3.4330, d_cone 2.6142, sigma 0.0663, ddG 0.0334 kcal/mol, k-factor 1.056, R_42/40 0.17826 (1.02x), leakage 0.0098
+           E2012: K_cat 2.9333e-04, retention 99.91%, CKI_TM 3.8176 (rot 3.6400 = 95.40% of the covariance term), S_Notch 2952, quadrant II
+                  sum w 3.7871, d_cone 2.8843, sigma 0.6967, ddG 0.3876 kcal/mol, k-factor 1.876, R_42/40 0.08075 (2.25x), leakage 0.0192
       KMS-AD-309: K_cat 1.6878e-03, retention 99.49%, CKI_TM 4.2536 (rot 4.0433 = 95.11% of the covariance term), S_Notch 1583, quadrant II
                   sum w 3.7869, d_cone 2.8841, sigma 0.7353, ddG 0.4090 kcal/mol, k-factor 1.942, R_42/40 0.06978 (2.61x), leakage 0.0446
-  two routes to the same effect: ratio law 2.6081x, cone-barrier rate factor 1.9422x, quotient 1.3429
   rotation share of the lead's covariance term: 95.11%
+  branching law: rho_0 = 3.0, eta_clamp = 0.2262; at wild-type apo it returns rho = 3.000000 and R = 0.182000
+  largest disagreement with the design-brief law over the 5 compounds: 8.91% (Avagacestat)
+  the two clinical biomarkers: Semagacestat 1.01x down / 1.01x up, Avagacestat 1.17x down / 1.23x up, R-Flurbiprofen 1.05x down / 1.07x up, E2012 2.37x down / 2.82x up, KMS-AD-309 2.61x down / 3.14x up
 
 [Table 5] Virtual screen of 240 ligands and the activity assay
      I: n 60, K_cat [2.04e-01, 6.70e-01], CKI_TM [4.071, 7.001], retention [13.39, 54.30]%, R [0.0244, 0.0742], assay hits 60, both constraints 0
@@ -51,7 +57,33 @@ Paper IX companion: tables and checks
   assay (hit iff K_catalytic > 0.025): 120/240 hits, quadrant-II recall 0% (0/60), every hit in I or IV: True
   ligands meeting both design constraints: 60/240, all in quadrant II
   saturation bound S_Notch <= CKI_TM / eps_0: max ratio S_Notch eps_0 / CKI_TM = 0.995727 (<= 1)
-  Flurbiprofen scores S_Notch = 204.4 with CKI_TM = 0.2194, far below the threshold 3.2
+  R-Flurbiprofen scores S_Notch = 204.4 with CKI_TM = 0.2194, far below the threshold 3.2
+
+[Table 6] Familial AD alleles and their allosteric rescue
+  PS1-L166P: helix-breaking proline in TM3; among the most aggressive PSEN1 alleles
+    untreated: Gamma_bg -1.9682, ddG_bg -0.2975, Abeta38/42 1.1861, R_42/40 0.33301
+    + Semagacestat    Gamma -1.9537, Abeta38/42 1.2083, R 0.32967 (1.01x), retention 13.30%, m* >4
+    + Avagacestat     Gamma -1.6395, Abeta38/42 1.6479, R 0.27493 (1.21x), retention 64.94%, m* 3.689
+    + R-Flurbiprofen  Gamma -1.8901, Abeta38/42 1.3118, R 0.31491 (1.06x), retention 99.98%, m* >4
+    + E2012           Gamma +0.4379, Abeta38/42 4.0332, R 0.14464 (2.30x), retention 99.91%, m* 1.188
+    + KMS-AD-309      Gamma +0.7068, Abeta38/42 4.3853, R 0.13518 (2.46x), retention 99.49%, m* 1.112
+  PS1-E280A: TM6-TM7 hydrophilic loop, adjacent to TM6a; the Antioquia kindred allele
+    untreated: Gamma_bg -2.1419, ddG_bg -0.3092, Abeta38/42 1.1189, R_42/40 0.34357
+    + Semagacestat    Gamma -2.1275, Abeta38/42 1.1400, R 0.34019 (1.01x), retention 13.31%, m* >4
+    + Avagacestat     Gamma -1.8394, Abeta38/42 1.5301, R 0.28773 (1.19x), retention 64.96%, m* 3.981
+    + R-Flurbiprofen  Gamma -2.0452, Abeta38/42 1.2634, R 0.32164 (1.07x), retention 99.98%, m* >4
+    + E2012           Gamma +0.1476, Abeta38/42 3.6586, R 0.15627 (2.20x), retention 99.91%, m* 1.244
+    + KMS-AD-309      Gamma +0.4695, Abeta38/42 4.0428, R 0.14436 (2.38x), retention 99.49%, m* 1.153
+  clamp additivity |Gamma - (Gamma_bg + Gamma_L)| <= 0.00e+00; the background term is ligand-independent to 0.00e+00
+  rescue occupancies for the quadrant-II modulators: PS1-L166P+E2012 1.188x, PS1-L166P+KMS-AD-309 1.112x, PS1-E280A+E2012 1.244x, PS1-E280A+KMS-AD-309 1.153x
+  counterfactual, the non-additive clamp (one term against wild type, one sign):
+      PS1-L166P + R-Flurbiprofen  naive zeta +1, Gamma +1.9146, R 0.0819   against additive Gamma -1.8901, R 0.3149
+      PS1-L166P + Semagacestat    naive zeta +1, Gamma +1.8644, R 0.0856   against additive Gamma -1.9537, R 0.3297
+      PS1-L166P + KMS-AD-309      naive zeta +1, Gamma +5.1995, R 0.0326   against additive Gamma +0.7068, R 0.1352
+      PS1-E280A + R-Flurbiprofen  naive zeta +1, Gamma +2.3297, R 0.0724   against additive Gamma -2.0452, R 0.3216
+      PS1-E280A + Semagacestat    naive zeta +1, Gamma +2.2104, R 0.0771   against additive Gamma -2.1275, R 0.3402
+      PS1-E280A + KMS-AD-309      naive zeta +1, Gamma +4.9190, R 0.0349   against additive Gamma +0.4695, R 0.1444
+    the non-additive clamp makes a failed modulator and an inhibitor both appear to cure both alleles below the wild-type baseline: True
 
 [Checks]
   PASS  closed form, k = 1..6, max error < 1e-12
@@ -62,10 +94,18 @@ Paper IX companion: tables and checks
   PASS  CKI_TM varies by under 1 % over the coupling scan
   PASS  d_cone strictly increasing along the anisotropy family
   PASS  the anisotropy family is even in a
-  PASS  max_j w_j <= d_cone < sum_j w_j on all 243 ligands
+  PASS  max_j w_j <= d_cone < sum_j w_j on all 245 ligands
   PASS  the recursion is well posed on the whole family and all ligands
-  PASS  two routes agree within a factor 2
   PASS  the lead acts through rotation (> 90 % of the covariance term)
+  PASS  branching law returns (rho_0, R_0) at wild-type apo
+  PASS  branching and design-brief laws agree to 10 % on all compounds
+  PASS  the clamp is additive over background and ligand
+  PASS  the background term does not depend on the ligand
+  PASS  both FAD alleles land in the reported R_42/40 range
+  PASS  both quadrant-II modulators rescue both alleles below wild type
+  PASS  rescue to R < 0.12 needs under 1.5x occupancy
+  PASS  neither the weak GSM nor the inhibitor rescues at any occupancy
+  PASS  the non-additive clamp gives the absurd result of Remark 4.6
   PASS  assay recall on quadrant II is 0
   PASS  every assay hit is Notch-liable
   PASS  exactly the 60 quadrant-II ligands meet both constraints

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 paper09_compute_tables.py
@@ -137,7 +137,9 @@ def main() -> int:
     compounds = read_csv("exp09_compound_comparison.csv")
     screen = read_csv("exp09_quadrant_screen.csv")
     cone = read_csv("exp09_cone_scan.csv")
+    fad_rows = read_csv("exp09_fad_rescue.csv")
     by = {r["ligand"]: r for r in compounds}
+    fad = {(r["background"], r["ligand"]): r for r in fad_rows}
 
     # ---------------- Table 1: the model ----------------
     out("\n[Table 1] Three-zone Gaussian elastic model of Presenilin-1")
@@ -248,9 +250,10 @@ def main() -> int:
                        "slack_family": slack_family, "slack_ligand": slack_ligand}
 
     # ---------------- Table 4: reference compounds ----------------
-    out("\n[Table 4] The three reference compounds")
-    t4a, t4b = [], []
-    for name in ("Semagacestat", "Flurbiprofen", "KMS-AD-309"):
+    out(f"\n[Table 4] The {len(compounds)} reference compounds")
+    t4a, t4b, t4c = [], [], []
+    for spec in M.COMPOUNDS:
+        name = spec.name
         r = by[name]
         out(f"  {name:>14}: K_cat {r['K_catalytic']:.4e}, retention {100 * r['notch_retention']:.2f}%, "
             f"CKI_TM {r['CKI_TM']:.4f} (rot {r['CKI_TM_rot']:.4f} = {100 * r['CKI_TM_rot'] / r['CKI_cov']:.2f}% "
@@ -265,17 +268,29 @@ def main() -> int:
                    f"{m(r['w_sum'], 4)} & {m(r['d_cone'], 4)} & {m(r['sigma_sync'], 4)} & "
                    f"{m(r['ddG_barrier_kcal'], 4)} & {m(r['rate_factor_42_38'], 3)} & "
                    f"{m(r['R_42_40'], 5)} & {m(r['R_fold_reduction'], 3)} \\\\")
+        t4c.append(f"{name} & {m(r['Gamma'], 4, True)} & {m(r['ddG_barrier_kcal'], 4, True)} & "
+                   f"{m(r['ratio_38_42'], 4)} & {m(r['ratio_38_42_fold'], 3)} & "
+                   f"{m(r['R_42_40_branch'], 5)} & {m(r['R_branch_fold'], 3)} & "
+                   f"{m(100 * abs(r['R_branch_fold'] / r['R_fold_reduction'] - 1), 2)} \\\\")
     write_rows("paper09_table4a_rows.tex", t4a)
     write_rows("paper09_table4b_rows.tex", t4b)
+    write_rows("paper09_table4c_rows.tex", t4c)
 
     lead = by["KMS-AD-309"]
-    quotient = lead["R_fold_reduction"] / lead["rate_factor_42_38"]
     rot_share = lead["CKI_TM_rot"] / lead["CKI_cov"]
-    out(f"  two routes to the same effect: ratio law {lead['R_fold_reduction']:.4f}x, cone-barrier rate "
-        f"factor {lead['rate_factor_42_38']:.4f}x, quotient {quotient:.4f}")
+    max_disc = max(abs(r["R_branch_fold"] / r["R_fold_reduction"] - 1) for r in compounds)
+    apo_wt = fad[("wild type", "apo")]
     out(f"  rotation share of the lead's covariance term: {100 * rot_share:.2f}%")
-    summary["compounds"] = {n: by[n] for n in ("Semagacestat", "Flurbiprofen", "KMS-AD-309")}
-    summary["consistency"] = {"quotient": quotient, "rot_share": rot_share}
+    out(f"  branching law: rho_0 = {M.RHO0}, eta_clamp = {M.ETA_CLAMP}; at wild-type apo it returns "
+        f"rho = {apo_wt['ratio_38_42']:.6f} and R = {apo_wt['R_42_40_branch']:.6f}")
+    out(f"  largest disagreement with the design-brief law over the {len(compounds)} compounds: "
+        f"{100 * max_disc:.2f}% ({max(compounds, key=lambda r: abs(r['R_branch_fold'] / r['R_fold_reduction'] - 1))['ligand']})")
+    out(f"  the two clinical biomarkers: "
+        + ", ".join(f"{r['ligand']} {r['R_branch_fold']:.2f}x down / {r['ratio_38_42_fold']:.2f}x up"
+                    for r in compounds))
+    summary["compounds"] = {r["ligand"]: r for r in compounds}
+    summary["branching"] = {"rho0": M.RHO0, "eta_clamp": M.ETA_CLAMP, "max_disagreement": max_disc,
+                            "rot_share": rot_share}
 
     # ---------------- Table 5: the screen ----------------
     out("\n[Table 5] Virtual screen of 240 ligands and the activity assay")
@@ -305,10 +320,67 @@ def main() -> int:
     out(f"  ligands meeting both design constraints: {n_both}/{len(screen)}, all in quadrant II")
     sat = max(r["S_Notch"] * (M.EPS0 / r["CKI_TM"]) for r in screen + compounds)
     out(f"  saturation bound S_Notch <= CKI_TM / eps_0: max ratio S_Notch eps_0 / CKI_TM = {sat:.6f} (<= 1)")
-    out(f"  Flurbiprofen scores S_Notch = {by['Flurbiprofen']['S_Notch']:.1f} with "
-        f"CKI_TM = {by['Flurbiprofen']['CKI_TM']:.4f}, far below the threshold {M.CKI_TM_MIN}")
+    out(f"  R-Flurbiprofen scores S_Notch = {by['R-Flurbiprofen']['S_Notch']:.1f} with "
+        f"CKI_TM = {by['R-Flurbiprofen']['CKI_TM']:.4f}, far below the threshold {M.CKI_TM_MIN}")
     summary["screen"] = {"n": len(screen), "hits": n_hits, "recall_II": recall, "all_hits_liable": liable,
                          "both_constraints": n_both, "saturation_max": sat}
+
+    # ---------------- Table 6: familial AD and rescue ----------------
+    out("\n[Table 6] Familial AD alleles and their allosteric rescue")
+    t6 = []
+    for bg in M.FAD_BACKGROUNDS:
+        base = fad[(bg.name, "apo")]
+        out(f"  {bg.name}: {bg.note}")
+        out(f"    untreated: Gamma_bg {base['Gamma_bg']:+.4f}, ddG_bg {base['ddG_bg_kcal']:+.4f}, "
+            f"Abeta38/42 {base['ratio_38_42']:.4f}, R_42/40 {base['R_42_40_branch']:.5f}")
+        t6.append(f"{bg.name} & untreated & {m(base['Gamma'], 4, True)} & {m(base['ratio_38_42'], 4)} & "
+                  f"{m(base['R_42_40_branch'], 5)} & $1.00$ & {m(100 * base['notch_retention'], 2)} & -- \\\\")
+        for spec in M.COMPOUNDS:
+            r = fad[(bg.name, spec.name)]
+            mstar = r["rescue_occupancy"]
+            ms = m(mstar, 3) if isinstance(mstar, float) else "$>4$"
+            out(f"    + {spec.name:<15} Gamma {r['Gamma']:+.4f}, Abeta38/42 {r['ratio_38_42']:.4f}, "
+                f"R {r['R_42_40_branch']:.5f} ({base['R_42_40_branch'] / r['R_42_40_branch']:.2f}x), "
+                f"retention {100 * r['notch_retention']:.2f}%, m* {ms.strip('$')}")
+            t6.append(f" & {spec.name} & {m(r['Gamma'], 4, True)} & {m(r['ratio_38_42'], 4)} & "
+                      f"{m(r['R_42_40_branch'], 5)} & {m(base['R_42_40_branch'] / r['R_42_40_branch'], 2)} & "
+                      f"{m(100 * r['notch_retention'], 2)} & {ms} \\\\")
+    write_rows("paper09_table6_rows.tex", t6)
+
+    fad_apo = [fad[(b.name, "apo")] for b in M.FAD_BACKGROUNDS]
+    resc = [fad[(b.name, c)] for b in M.FAD_BACKGROUNDS for c in ("E2012", "KMS-AD-309")]
+    fails = [fad[(b.name, c)] for b in M.FAD_BACKGROUNDS for c in ("R-Flurbiprofen", "Semagacestat")]
+    additive = max(abs(r["Gamma"] - (r["Gamma_bg"] + r["Gamma_ligand"])) for r in fad_rows)
+    bg_indep = max(
+        abs(fad[(b.name, s.name)]["Gamma_bg"] - fad[(b.name, "apo")]["Gamma_bg"])
+        for b in M.BACKGROUNDS for s in M.COMPOUNDS)
+    out(f"  clamp additivity |Gamma - (Gamma_bg + Gamma_L)| <= {additive:.2e}; the background term is "
+        f"ligand-independent to {bg_indep:.2e}")
+    out(f"  rescue occupancies for the quadrant-II modulators: "
+        + ", ".join(f"{r['background']}+{r['ligand']} {r['rescue_occupancy']:.3f}x" for r in resc))
+
+    # the single-term clamp of Remark 4.x: everything against wild type, one global sign
+    out("  counterfactual, the non-additive clamp (one term against wild type, one sign):")
+    apo_ens = M.ensemble(M.APO, M.WILD_TYPE)
+    naive = {}
+    for bg in M.FAD_BACKGROUNDS:
+        for cn in ("R-Flurbiprofen", "Semagacestat", "KMS-AD-309"):
+            t = M._clamp_term(M.ensemble(M.COMPOUND[cn], bg), apo_ens)
+            _, r_naive = M.branching(t["Gamma"], t["ddG"])
+            naive[(bg.name, cn)] = {"zeta": t["zeta"], "Gamma": t["Gamma"], "R": r_naive}
+            add = fad[(bg.name, cn)]
+            out(f"    {bg.name:>11} + {cn:<15} naive zeta {t['zeta']:+.0f}, Gamma {t['Gamma']:+.4f}, "
+                f"R {r_naive:.4f}   against additive Gamma {add['Gamma']:+.4f}, R {add['R_42_40_branch']:.4f}")
+    naive_absurd = all(naive[(b.name, c)]["R"] < M.R0_42_40 for b in M.FAD_BACKGROUNDS
+                       for c in ("R-Flurbiprofen", "Semagacestat"))
+    out(f"    the non-additive clamp makes a failed modulator and an inhibitor both appear to cure both "
+        f"alleles below the wild-type baseline: {naive_absurd}")
+    summary["naive_clamp"] = {f"{k[0]}+{k[1]}": v for k, v in naive.items()}
+    summary["fad"] = {"untreated": {r["background"]: r["R_42_40_branch"] for r in fad_apo},
+                      "rescue": {f"{r['background']}+{r['ligand']}":
+                                 {"R": r["R_42_40_branch"], "retention": r["notch_retention"],
+                                  "m_star": r["rescue_occupancy"]} for r in resc},
+                      "additivity": additive, "bg_independence": bg_indep}
 
     # ---------------- overall ----------------
     out("\n[Checks]")
@@ -321,10 +393,24 @@ def main() -> int:
         "CKI_TM varies by under 1 % over the coupling scan": cki_spread < 1.01,
         "d_cone strictly increasing along the anisotropy family": bool(inc.min() > 0),
         "the anisotropy family is even in a": even_err < 1e-12,
-        "max_j w_j <= d_cone < sum_j w_j on all 243 ligands": bound_ok,
+        f"max_j w_j <= d_cone < sum_j w_j on all {len(compounds) + len(screen)} ligands": bound_ok,
         "the recursion is well posed on the whole family and all ligands": min(slack_family, slack_ligand) >= 0,
-        "two routes agree within a factor 2": 0.5 <= quotient <= 2.0,
         "the lead acts through rotation (> 90 % of the covariance term)": rot_share > 0.90,
+        "branching law returns (rho_0, R_0) at wild-type apo": (
+            abs(apo_wt["ratio_38_42"] - M.RHO0) < 1e-9 and abs(apo_wt["R_42_40_branch"] - M.R0_42_40) < 1e-9),
+        "branching and design-brief laws agree to 10 % on all compounds": max_disc < 0.10,
+        "the clamp is additive over background and ligand": additive < 1e-12,
+        "the background term does not depend on the ligand": bg_indep < 1e-12,
+        "both FAD alleles land in the reported R_42/40 range": all(
+            M.R_FAD_LOW <= r["R_42_40_branch"] <= M.R_FAD_HIGH and r["zeta_bg"] < 0 for r in fad_apo),
+        "both quadrant-II modulators rescue both alleles below wild type": all(
+            r["Gamma"] > 0 and r["R_42_40_branch"] < M.R0_42_40
+            and r["notch_retention"] > M.NOTCH_RESCUE_MIN for r in resc),
+        "rescue to R < 0.12 needs under 1.5x occupancy": all(
+            isinstance(r["rescue_occupancy"], float) and r["rescue_occupancy"] < 1.5 for r in resc),
+        "neither the weak GSM nor the inhibitor rescues at any occupancy": all(
+            not isinstance(r["rescue_occupancy"], float) for r in fails),
+        "the non-additive clamp gives the absurd result of Remark 4.6": naive_absurd,
         "assay recall on quadrant II is 0": recall == 0.0,
         "every assay hit is Notch-liable": liable,
         "exactly the 60 quadrant-II ligands meet both constraints": n_both == len(q2) == 60,
@@ -340,7 +426,7 @@ def main() -> int:
         json.dump(summary, f, indent=1, default=lambda o: o.tolist() if hasattr(o, "tolist") else str(o))
     with open(os.path.join(RESULTS, "paper09_tables_summary.txt"), "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
-    print("\nwritten: results/paper09_table{1,2,3,4a,4b,5}_rows.tex, paper09_tables.json, "
+    print("\nwritten: results/paper09_table{1,2,3,4a,4b,4c,5,6}_rows.tex, paper09_tables.json, "
           "paper09_tables_summary.txt")
     return 0 if ok else 1
 

@@ -22,11 +22,12 @@ def test_block_sizes_and_partition():
 
 
 def test_stiffness_is_positive_definite_with_tether_floor():
-    for spec in (M.APO,) + M.COMPOUNDS + (M.LigandSpec("extreme", 1.0, 1.35, 1.35),):
-        e = np.linalg.eigvalsh(M.stiffness(spec))
-        assert e[0] > 0, spec.name
-        # K = (graph Laplacian, positive semi-definite) + T_TETHER I, so lambda_min >= T_TETHER
-        assert e[0] >= M.T_TETHER - 1e-9, (spec.name, e[0])
+    for bg in M.BACKGROUNDS:
+        for spec in (M.APO,) + M.COMPOUNDS + (M.LigandSpec("extreme", 1.0, 1.35, 1.35),):
+            e = np.linalg.eigvalsh(M.stiffness(spec, bg))
+            assert e[0] > 0, (bg.name, spec.name)
+            # K = (graph Laplacian, positive semi-definite) + T_TETHER I, so lambda_min >= T_TETHER
+            assert e[0] >= M.T_TETHER - 1e-9, (bg.name, spec.name, e[0])
 
 
 def test_apo_has_zero_mean_and_symmetric_covariance():
@@ -101,11 +102,91 @@ def test_reference_compounds_fall_in_the_expected_quadrants():
     q = {s.name: M.metrics(s, apo) for s in M.COMPOUNDS}
     assert q["Semagacestat"]["quadrant"] == "IV"
     assert q["Semagacestat"]["notch_retention"] < M.NOTCH_MIN
-    assert q["Flurbiprofen"]["quadrant"] == "III"
-    assert q["KMS-AD-309"]["quadrant"] == "II"
-    assert q["KMS-AD-309"]["K_catalytic"] < M.K_CAT_MAX
-    assert q["KMS-AD-309"]["CKI_TM"] > M.CKI_TM_MIN
-    assert q["KMS-AD-309"]["S_Notch"] > q["Flurbiprofen"]["S_Notch"] > q["Semagacestat"]["S_Notch"]
+    # Avagacestat was described as Notch-sparing; in the model it is not
+    assert q["Avagacestat"]["quadrant"] == "IV"
+    assert q["Avagacestat"]["K_catalytic"] > M.K_CAT_MAX
+    assert q["Avagacestat"]["notch_retention"] < M.NOTCH_MIN
+    assert q["R-Flurbiprofen"]["quadrant"] == "III"
+    for name in ("E2012", "KMS-AD-309"):
+        assert q[name]["quadrant"] == "II", name
+        assert q[name]["K_catalytic"] < M.K_CAT_MAX
+        assert q[name]["CKI_TM"] > M.CKI_TM_MIN
+        assert q[name]["notch_retention"] > M.NOTCH_MIN
+    assert q["KMS-AD-309"]["S_Notch"] > q["R-Flurbiprofen"]["S_Notch"] > q["Semagacestat"]["S_Notch"]
+
+
+def test_branching_law_is_anchored_at_the_wild_type_apo_state():
+    m = M.metrics(M.APO)
+    assert abs(m["ratio_38_42"] - M.RHO0) < 1e-12
+    assert abs(m["R_42_40_branch"] - M.R0_42_40) < 1e-12
+    assert m["Gamma"] == 0.0 and m["ddG_barrier_kcal"] == 0.0
+    # rho and R_42/40 move in opposite directions, by construction
+    assert M.branching(2.0, 0.3)[0] > M.RHO0 > M.branching(-2.0, -0.3)[0]
+    assert M.branching(2.0, 0.3)[1] < M.R0_42_40 < M.branching(-2.0, -0.3)[1]
+
+
+def test_branching_law_agrees_with_the_design_brief_law_on_wild_type():
+    """The two laws share one anchor, KMS-AD-309; everywhere else agreement is a check."""
+    apo = M.ensemble(M.APO)
+    for spec in M.COMPOUNDS:
+        m = M.metrics(spec, apo)
+        assert abs(m["R_branch_fold"] / m["R_fold_reduction"] - 1) < 0.10, spec.name
+    lead = M.metrics(M.COMPOUND["KMS-AD-309"], apo)
+    assert abs(lead["R_42_40_branch"] - M.R_LEAD_ANCHOR) < 1e-4
+
+
+def test_fad_backgrounds_loosen_the_processive_path():
+    apo = M.ensemble(M.APO)
+    for bg in M.FAD_BACKGROUNDS:
+        m = M.metrics(M.APO, apo, bg)
+        assert m["zeta_bg"] < 0, bg.name                       # the allele loosens, it does not clamp
+        assert m["Gamma"] < 0 and m["ddG_barrier_kcal"] < 0
+        assert m["ratio_38_42"] < M.RHO0                       # less Abeta38 relative to Abeta42
+        assert M.R_FAD_LOW <= m["R_42_40_branch"] <= M.R_FAD_HIGH, (bg.name, m["R_42_40_branch"])
+        # the ligand term vanishes for an untreated background
+        assert m["Gamma_ligand"] == 0.0 and m["CKI_TM"] < 1e-12
+
+
+def test_quadrant_two_modulators_rescue_fad_and_the_others_do_not():
+    apo = M.ensemble(M.APO)
+    for bg in M.FAD_BACKGROUNDS:
+        base = M.metrics(M.APO, apo, bg)["R_42_40_branch"]
+        for name in ("E2012", "KMS-AD-309"):
+            m = M.metrics(M.COMPOUND[name], apo, bg)
+            assert m["Gamma"] > 0, (bg.name, name)             # the clamp changes sign
+            assert m["R_42_40_branch"] < M.R0_42_40 < base
+            assert m["notch_retention"] > M.NOTCH_RESCUE_MIN
+        for name in ("R-Flurbiprofen", "Semagacestat"):
+            m = M.metrics(M.COMPOUND[name], apo, bg)
+            assert m["Gamma"] < 0, (bg.name, name)
+            assert m["R_42_40_branch"] > M.R0_42_40
+            assert M.rescue_occupancy(M.COMPOUND[name], bg, apo=apo) is None
+
+
+def test_the_clamp_is_additive_over_background_and_ligand():
+    """Gamma = Gamma_background + Gamma_ligand, and on wild type the background term vanishes."""
+    apo = M.ensemble(M.APO)
+    for spec in M.COMPOUNDS:
+        wt = M.metrics(spec, apo)
+        assert wt["Gamma_bg"] == 0.0 and wt["ddG_bg_kcal"] == 0.0
+        assert abs(wt["Gamma"] - wt["Gamma_ligand"]) < 1e-12
+        for bg in M.FAD_BACKGROUNDS:
+            m = M.metrics(spec, apo, bg)
+            assert abs(m["Gamma"] - (m["Gamma_bg"] + m["Gamma_ligand"])) < 1e-12
+            assert abs(m["ddG_barrier_kcal"] - (m["ddG_bg_kcal"] + m["ddG_ligand_kcal"])) < 1e-12
+            # the background term does not depend on which ligand is present
+            assert abs(m["Gamma_bg"] - M.metrics(M.APO, apo, bg)["Gamma_bg"]) < 1e-12
+
+
+def test_occupancy_scaling_is_monotone():
+    apo = M.ensemble(M.APO)
+    lead = M.COMPOUND["KMS-AD-309"]
+    rs = [M.metrics(M.scaled(lead, m), apo)["R_42_40_branch"] for m in (0.25, 0.5, 1.0, 1.5)]
+    assert all(a > b for a, b in zip(rs, rs[1:])), rs
+    m_star = M.rescue_occupancy(lead, M.PS1_L166P, apo=apo)
+    assert m_star is not None and 1.0 < m_star < 1.5
+    got = M.metrics(M.scaled(lead, m_star), apo, M.PS1_L166P)["R_42_40_branch"]
+    assert abs(got - M.R_RESCUE_MAX) < 1e-3
 
 
 def test_allosteric_perturbation_stays_out_of_the_catalytic_block():
@@ -126,7 +207,7 @@ def test_cki_rotation_term_is_non_negative():
     for spec in M.COMPOUNDS:
         m = M.metrics(spec, apo)
         assert m["CKI_TM_rot"] >= -1e-9, spec.name
-    lead = M.metrics(M.COMPOUNDS[2], apo)
+    lead = M.metrics(M.COMPOUND["KMS-AD-309"], apo)
     assert lead["CKI_TM_rot"] > 0.8 * lead["CKI_cov"], "the lead must rearrange, not merely rescale"
 
 
