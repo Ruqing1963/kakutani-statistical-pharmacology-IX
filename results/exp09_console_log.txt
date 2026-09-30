@@ -70,5 +70,5 @@ Output files (relative to the repository root):
    figures/fig09_ad_gamma_secretase_gsm.pdf
    results/exp09_console_log.txt
 
-runtime 9.5 s
+runtime 9.3 s
 OVERALL ACCEPTANCE: PASS
