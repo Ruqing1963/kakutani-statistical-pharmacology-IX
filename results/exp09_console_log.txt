@@ -1,0 +1,74 @@
+Experiment 09: Notch-sparing gamma-secretase modulators from the second-order Kakutani index
+Statistical Pharmacology via Kakutani Dichotomy, Paper IX
+
+[1] Gaussian elastic model of the Presenilin-1 catalytic core
+  degrees of freedom: catalytic 30 + gate (TM6a, PAL) 70 + channel (TM1-TM9) 200 = 300
+  segments: D257_loop(8), D385_loop(8), S3_register(14), TM6a(40), PAL(30), TM1(24), TM2(24), TM3(26), TM4(22), TM5(22), TM6(24), TM7(22), TM8(20), TM9(16)
+  stiffness K: eigenvalues in [0.9000, 24.8622], condition number 27.62, dim ker = 0
+  weak-coupling design: K_cat-channel = 0.35, K_cat-gate = 0.25 against K_path = {'cat': 6.0, 'gate': 4.0, 'chan': 5.0}, K_pack = 1.2
+  Acceptance: K positive definite with lambda_min = tether 0.9, block sizes 30/70/200  PASS
+
+[2] Three-residue step: discrete infinity-Laplacian cone geodesic on {0,1}^3
+  equal weights w = 1.05: recursion 2.398679902894982, closed form w(1 + 1/sqrt(2) + 1/sqrt(3)) = 2.398679902894982, error 4.44e-16
+  discount against the sequential path: d_cone / 3w = 0.761486 (= (1 + 1/sqrt(2) + 1/sqrt(3)) / 3 = 0.761486), sequential 3w = 3.1500
+      a    w_TM3   w_TM6a    w_PAL    sum w    d_cone   d/sum w   d/max w
+    0.0   1.0500   1.0500   1.0500   3.1500   2.39868  0.761486  2.284457
+    0.1   1.1550   1.0500   0.9450   3.1500   2.40137  0.762341  2.079112
+    0.2   1.2600   1.0500   0.8400   3.1500   2.40950  0.764921  1.912302
+    0.3   1.3650   1.0500   0.7350   3.1500   2.42320  0.769270  1.775239
+    0.4   1.4700   1.0500   0.6300   3.1500   2.44273  0.775468  1.661718
+    0.5   1.5750   1.0500   0.5250   3.1500   2.46846  0.783639  1.567277
+    0.6   1.6800   1.0500   0.4200   3.1500   2.50099  0.793966  1.488685
+    0.7   1.7850   1.0500   0.3150   3.1500   2.54119  0.806727  1.423636
+    0.8   1.8900   1.0500   0.2100   3.1500   2.59045  0.822364  1.370607
+  Acceptance: closed form reproduced to 4.4e-16 (< 1e-12), d_cone < sum w throughout, and d_cone non-decreasing in the anisotropy at fixed sum w  PASS
+
+[3] Reference compounds against the Kakutani-spectrum lead
+        compound  s_cat  s_gate  s_chan  K_catalytic  Notch ret.   CKI_TM    D_rot    S_Notch  quadrant
+    Semagacestat  1.000    0.05    0.05    6.722e-01      13.31%   0.0344   0.0286    0.05104        IV
+    Flurbiprofen  0.004    0.18    0.12    7.342e-05      99.98%   0.2194   0.1919      204.4       III
+      KMS-AD-309  0.020    1.00    1.00    1.688e-03      99.49%   4.2536   4.0433       1583        II
+
+        compound   w_TM3  w_TM6a   w_PAL   sum w  d_cone   sigma  ddG (kcal/mol)  k(42->38)   R_42/40   fold
+    Semagacestat  1.1026  1.0794  1.0860  3.2680  2.4886  0.0107          0.0051      1.008   0.18136   1.00x
+    Flurbiprofen  1.1568  1.1255  1.1506  3.4330  2.6142  0.0663          0.0334      1.056   0.17826   1.02x
+      KMS-AD-309  1.3022  1.2097  1.2750  3.7869  2.8841  0.7353          0.4090      1.942   0.06978   2.61x
+
+  reference ratio R_0 = 0.182, eta = 0.45, eps_0 = 0.001, k_B T = 0.6162 kcal/mol at 310 K
+    Semagacestat: orthosteric gamma-secretase inhibitor (GSI)
+                  orthosteric GSI, transition-state analogue; Phase III failure (IDENTITY)
+    Flurbiprofen: silent / first-generation weak GSM
+                  first-generation NSAID-derived GSM; weak channel coupling
+      KMS-AD-309: Notch-sparing gamma-secretase modulator (target class)
+                  Kakutani-spectrum optimised lead; gate and channel coupling, no active-site contact
+
+  Acceptance: Semagacestat in IV with retention 13.31% < 92%, Flurbiprofen in III (CKI_TM 0.219 < 3.2), KMS-AD-309 in II (K_cat 1.69e-03 < 0.025, CKI_TM 4.254 > 3.2, retention 99.49%)  PASS
+  Acceptance: S_Notch ordering lead 1582.6 > Flurbiprofen 204.4 > Semagacestat 0.0510, lead/Semagacestat = 3.1e+04 (> 1e3)  PASS
+  Note: S_Notch saturates at CKI_TM / eps_0 as K_catalytic -> 0, so Flurbiprofen scores 204 while failing constraint (2). The index ranks, the two absolute constraints select.
+  Acceptance: R_42/40 reduction lead 2.61x (> 2), Semagacestat 1.004x (< 1.05, an inhibitor does not shift the ratio), Flurbiprofen 1.021x (< 1.10)  PASS
+  Acceptance: the two independent routes agree: ratio law 2.61x against cone-barrier rate factor exp(ddG / kT) = 1.94x, quotient 1.34 (within 2x)  PASS
+  Acceptance: the weak catalytic couplings confine the allosteric perturbation: lead leakage ||dSigma_C|| / ||Sigma_C|| = 0.0446 (< 0.10) at CKI_TM = 4.25, against 0.4436 for Semagacestat  PASS
+
+[4] Virtual screen of 240 ligands in the (K_catalytic, CKI_TM) plane
+  quadrant    n         K_catalytic range         CKI_TM range   Notch retention (%)       R_42/40 range
+         I   60   2.04e-01 -   6.70e-01    4.071 -    7.001     13.39 -    54.30   0.0244 -   0.0742
+        II   60   4.29e-06 -   1.24e-02    4.308 -    6.640     96.34 -   100.00   0.0283 -   0.0685
+       III   60   1.96e-05 -   1.14e-02    0.115 -    1.553     96.63 -    99.99   0.1473 -   0.1800
+        IV   60   2.09e-01 -   6.71e-01    0.098 -    1.710     13.35 -    53.50   0.1428 -   0.1803
+  sampled strength ranges realise the intended quadrant: 100.0% (240/240)
+  ligands satisfying both design constraints: 60/240, all of quadrant II (60 sampled)
+  activity-assay-only read-out (hit iff K_catalytic > 0.025): 120 hits, quadrant-II recall 0%, every hit in quadrant I or IV: True
+  Acceptance: the sampling realises all four quadrants, quadrant II is invisible to the activity assay, and every assay hit carries a Notch liability  PASS
+
+[5] Figure
+
+Output files (relative to the repository root):
+   data/exp09_compound_comparison.csv
+   data/exp09_quadrant_screen.csv
+   data/exp09_cone_scan.csv
+   figures/fig09_ad_gamma_secretase_gsm.png
+   figures/fig09_ad_gamma_secretase_gsm.pdf
+   results/exp09_console_log.txt
+
+runtime 9.5 s
+OVERALL ACCEPTANCE: PASS

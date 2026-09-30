@@ -1,0 +1,81 @@
+cff-version: 1.2.0
+message: "If you use this code or data, please cite it as below."
+title: "Statistical Pharmacology via Kakutani Dichotomy IX: Notch-Sparing Gamma-Secretase Modulators for Alzheimer's Disease, a Second-Order Kakutani Index Screen with a Cone-Geodesic Model of Processive Trimming"
+type: software
+authors:
+  - family-names: Chen
+    given-names: Zhengyi
+    affiliation: "Guangxi Key Laboratory of Drug Discovery and Optimization, School of Pharmacy, Guilin Medical University, Guilin 541199, P. R. China"
+    email: chenzhengyi@glmc.edu.cn
+  - family-names: Chen
+    given-names: Ruqing
+    affiliation: "GUT Geoservice Inc., Montreal, Québec, Canada"
+    email: ruqing@hotmail.com
+date-released: 2026-09-29
+version: 0.1.0
+license: MIT
+keywords:
+  - Kakutani dichotomy
+  - correlated Kakutani index
+  - gamma-secretase
+  - presenilin-1
+  - Notch sparing
+  - gamma-secretase modulator
+  - Alzheimer's disease
+  - amyloid beta 42/40 ratio
+  - processive trimming
+  - infinity-Laplacian
+  - cone geodesic
+  - allosteric modulation
+  - elastic network model
+  - computational pharmacology
+preferred-citation:
+  type: article
+  title: "Statistical Pharmacology via Kakutani Dichotomy IX: Notch-Sparing Gamma-Secretase Modulators for Alzheimer's Disease, a Second-Order Kakutani Index Screen with a Cone-Geodesic Model of Processive Trimming"
+  authors:
+    - family-names: Chen
+      given-names: Zhengyi
+      affiliation: "Guangxi Key Laboratory of Drug Discovery and Optimization, School of Pharmacy, Guilin Medical University, Guilin 541199, P. R. China"
+    - family-names: Chen
+      given-names: Ruqing
+      affiliation: "GUT Geoservice Inc., Montreal, Québec, Canada"
+  year: 2026
+  publisher:
+    name: Zenodo
+references:
+  - type: article
+    title: "Statistical Pharmacology via Kakutani Dichotomy IV: KMS-Gibbs conformational phase transitions, tail allostery, and the four-quadrant ligand classifier"
+    authors:
+      - family-names: Chen
+        given-names: Zhengyi
+      - family-names: Chen
+        given-names: Ruqing
+    year: 2026
+    doi: 10.5281/zenodo.23018236
+  - type: article
+    title: "Statistical Pharmacology via Kakutani Dichotomy VI: cone geodesics, discrete infinity-Laplacians, and Wasserstein transformation paths"
+    authors:
+      - family-names: Chen
+        given-names: Zhengyi
+      - family-names: Chen
+        given-names: Ruqing
+    year: 2026
+    doi: 10.5281/zenodo.23029360
+  - type: article
+    title: "Statistical Pharmacology via Kakutani Dichotomy VII: the kakutani_pharma pipeline, Ledoit-Wolf regularized CKI, split-trajectory null subtraction, and shell-scaling exponents in multi-domain allostery"
+    authors:
+      - family-names: Chen
+        given-names: Zhengyi
+      - family-names: Chen
+        given-names: Ruqing
+    year: 2026
+    doi: 10.5281/zenodo.23039869
+  - type: article
+    title: "Statistical Pharmacology via Kakutani Dichotomy VIII: Empirical Validation on Experimental All-Atom Protein Ensembles, Influence-Function Block Selection, and Bootstrap Coverage Calibration"
+    authors:
+      - family-names: Chen
+        given-names: Zhengyi
+      - family-names: Chen
+        given-names: Ruqing
+    year: 2026
+    doi: 10.5281/zenodo.23045772

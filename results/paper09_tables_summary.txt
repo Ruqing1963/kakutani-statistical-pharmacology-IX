@@ -1,0 +1,74 @@
+================================================================================================
+Paper IX companion: tables and checks
+================================================================================================
+
+[Table 1] Three-zone Gaussian elastic model of Presenilin-1
+   catalytic $\mathcal{C}$:  30 dof, path stiffness 6.0, segments D257 loop (8), D385 loop (8), S3 register (14)
+        gate $\mathcal{G}$:  70 dof, path stiffness 4.0, segments TM6a (40), PAL (30)
+     channel $\mathcal{H}$: 200 dof, path stiffness 5.0, segments TM1 (24), TM2 (24), TM3 (26), TM4 (22), TM5 (22), TM6 (24), TM7 (22), TM8 (20), TM9 (16)
+  K = graph Laplacian + 0.9 I: spectrum [0.9000, 24.8622], condition number 27.62, dim ker = 0
+  inter-block couplings: gate-channel 1.0, channel packing 1.2, catalytic-channel 0.35, catalytic-gate 0.25
+
+[Table 2] Proposition 2.2: Schur-complement screening of the catalytic block
+  perturbation: allosteric-only (s_cat = 0, s_gate = s_chan = 1), supported on $\mathcal{M} = \mathcal{G} \cup \mathcal{H}$
+         s  K_cat-chan    ||dP||_F  ||dP||/||P||    leakage   K_cat mean    K_cat cov   CKI_TM
+   0.03125     0.01094   1.584e-05     1.969e-07   0.000001    2.111e-10    7.638e-13   4.2654
+   0.06250     0.02187   6.317e-05     7.854e-07   0.000004    8.381e-10    1.214e-11   4.2650
+   0.12500     0.04375   2.513e-04     3.123e-06   0.000014    3.303e-09    1.897e-10   4.2641
+   0.25000     0.08750   9.937e-04     1.235e-05   0.000055    1.283e-08    2.897e-09   4.2625
+   0.50000     0.17500   3.887e-03     4.827e-05   0.000207    4.848e-08    4.235e-08   4.2593
+   1.00000     0.35000   1.489e-02     1.846e-04   0.000730    1.740e-07    5.712e-07   4.2536
+   2.00000     0.70000   5.479e-02     6.782e-04   0.002336    5.716e-07    6.700e-06   4.2441
+  asymptotic exponents (fitted on s <= 0.25): ||dP||_F 1.9906, leakage 1.9709, mean term 1.9755, covariance term 3.9633
+  Proposition 2.2 predicts 2, 2, 2 and 4; successive local exponents of ||dP||_F: 1.996, 1.992, 1.984, 1.968, 1.937, 1.880
+  successive local exponents of the covariance term: 3.990, 3.966, 3.933, 3.870, 3.753, 3.552
+  CKI_TM is untouched by the screening: it varies by a factor 1.0050 over a 64-fold range of s
+
+[Table 3] Theorem 3.1 and Proposition 3.3: the cone geodesic on {0,1}^3
+  equal-weight closed form d_k = w sum_{j<=k} 1/sqrt(j), k = 1..6, max error 4.44e-16
+  k = 3: d_cone = 2.398679903 kT = 2.284457 w, sequential 3w = 3.1500 kT, relative 0.761486
+  monotonicity on 2001 points a in [0, 0.999]: min increment 6.712e-08 (> 0: True), d_cone rises from 2.398680 to 2.729042 kT
+  evenness d_cone(w(a)) = d_cone(w(-a)) to 0.00e+00 (the family is a permutation of itself), so a = 0 is a critical point
+  bounds on the 240 screened ligands and the three compounds: max_j w_j <= d_cone < sum_j w_j
+    holds in 243/243 cases: True
+  well-posedness margin of the recursion (Theorem 3.1 hypothesis): min over the anisotropy family 0.000072, min over all 243 ligands 0.979027 (both >= 0)
+
+[Table 4] The three reference compounds
+    Semagacestat: K_cat 6.7221e-01, retention 13.31%, CKI_TM 0.0344 (rot 0.0286 = 83.35% of the covariance term), S_Notch 0.05104, quadrant IV
+                  sum w 3.2680, d_cone 2.4886, sigma 0.0107, ddG 0.0051 kcal/mol, k-factor 1.008, R_42/40 0.18136 (1.00x), leakage 0.4436
+    Flurbiprofen: K_cat 7.3418e-05, retention 99.98%, CKI_TM 0.2194 (rot 0.1919 = 87.49% of the covariance term), S_Notch 204.4, quadrant III
+                  sum w 3.4330, d_cone 2.6142, sigma 0.0663, ddG 0.0334 kcal/mol, k-factor 1.056, R_42/40 0.17826 (1.02x), leakage 0.0098
+      KMS-AD-309: K_cat 1.6878e-03, retention 99.49%, CKI_TM 4.2536 (rot 4.0433 = 95.11% of the covariance term), S_Notch 1583, quadrant II
+                  sum w 3.7869, d_cone 2.8841, sigma 0.7353, ddG 0.4090 kcal/mol, k-factor 1.942, R_42/40 0.06978 (2.61x), leakage 0.0446
+  two routes to the same effect: ratio law 2.6081x, cone-barrier rate factor 1.9422x, quotient 1.3429
+  rotation share of the lead's covariance term: 95.11%
+
+[Table 5] Virtual screen of 240 ligands and the activity assay
+     I: n 60, K_cat [2.04e-01, 6.70e-01], CKI_TM [4.071, 7.001], retention [13.39, 54.30]%, R [0.0244, 0.0742], assay hits 60, both constraints 0
+    II: n 60, K_cat [4.29e-06, 1.24e-02], CKI_TM [4.308, 6.640], retention [96.34, 100.00]%, R [0.0283, 0.0685], assay hits 0, both constraints 60
+   III: n 60, K_cat [1.96e-05, 1.14e-02], CKI_TM [0.115, 1.553], retention [96.63, 99.99]%, R [0.1473, 0.1800], assay hits 0, both constraints 0
+    IV: n 60, K_cat [2.09e-01, 6.71e-01], CKI_TM [0.098, 1.710], retention [13.35, 53.50]%, R [0.1428, 0.1803], assay hits 60, both constraints 0
+  assay (hit iff K_catalytic > 0.025): 120/240 hits, quadrant-II recall 0% (0/60), every hit in I or IV: True
+  ligands meeting both design constraints: 60/240, all in quadrant II
+  saturation bound S_Notch <= CKI_TM / eps_0: max ratio S_Notch eps_0 / CKI_TM = 0.995727 (<= 1)
+  Flurbiprofen scores S_Notch = 204.4 with CKI_TM = 0.2194, far below the threshold 3.2
+
+[Checks]
+  PASS  closed form, k = 1..6, max error < 1e-12
+  PASS  Schur exponent of ||dP||_F is 2 to within 0.05
+  PASS  Schur exponent of the leakage is 2 to within 0.05
+  PASS  Schur exponent of the mean term is 2 to within 0.05
+  PASS  Schur exponent of the covariance term is 4 to within 0.10
+  PASS  CKI_TM varies by under 1 % over the coupling scan
+  PASS  d_cone strictly increasing along the anisotropy family
+  PASS  the anisotropy family is even in a
+  PASS  max_j w_j <= d_cone < sum_j w_j on all 243 ligands
+  PASS  the recursion is well posed on the whole family and all ligands
+  PASS  two routes agree within a factor 2
+  PASS  the lead acts through rotation (> 90 % of the covariance term)
+  PASS  assay recall on quadrant II is 0
+  PASS  every assay hit is Notch-liable
+  PASS  exactly the 60 quadrant-II ligands meet both constraints
+  PASS  S_Notch never exceeds CKI_TM / eps_0
+
+ALL CHECKS PASS

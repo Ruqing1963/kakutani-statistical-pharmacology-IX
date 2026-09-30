@@ -1,0 +1,3 @@
+# PDB files are stored and checked out byte-exact so that data/pdb/SHA256SUMS.txt stays valid on every platform
+data/pdb/*.pdb -text
+data/pdb/SHA256SUMS.txt -text
