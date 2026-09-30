@@ -1,6 +1,6 @@
-cff-version: 1.2.0
+﻿cff-version: 1.2.0
 message: "If you use this code or data, please cite it as below."
-title: "Statistical Pharmacology via Kakutani Dichotomy IX: Notch-Sparing Gamma-Secretase Modulators for Alzheimer's Disease, a Second-Order Kakutani Index Screen with a Cone-Geodesic Model of Processive Trimming"
+title: "Statistical Pharmacology via Kakutani Dichotomy IX: Notch-Sparing Gamma-Secretase Modulators for Alzheimer's Disease, Schur-Complement Confinement of the Catalytic Block, and a Cone-Geodesic Model of Processive Trimming"
 type: software
 authors:
   - family-names: Chen
@@ -33,7 +33,7 @@ keywords:
   - computational pharmacology
 preferred-citation:
   type: article
-  title: "Statistical Pharmacology via Kakutani Dichotomy IX: Notch-Sparing Gamma-Secretase Modulators for Alzheimer's Disease, a Second-Order Kakutani Index Screen with a Cone-Geodesic Model of Processive Trimming"
+  title: "Statistical Pharmacology via Kakutani Dichotomy IX: Notch-Sparing Gamma-Secretase Modulators for Alzheimer's Disease, Schur-Complement Confinement of the Catalytic Block, and a Cone-Geodesic Model of Processive Trimming"
   authors:
     - family-names: Chen
       given-names: Zhengyi

@@ -1,6 +1,6 @@
 ﻿# Statistical Pharmacology via Kakutani Dichotomy IX
 
-**Notch-Sparing γ-Secretase Modulators for Alzheimer's Disease: a Second-Order Kakutani Index Screen with a Cone-Geodesic Model of Processive Trimming**
+**Notch-Sparing γ-Secretase Modulators for Alzheimer's Disease, Schur-Complement Confinement of the Catalytic Block, and a Cone-Geodesic Model of Processive Trimming**
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23051518.svg)](https://doi.org/10.5281/zenodo.23051518)
 
@@ -221,7 +221,7 @@ cd paper && pdflatex paper09_ad_gamma_secretase_gsm.tex   # run three times
 ```bibtex
 @misc{ChenChen2026IX,
   author    = {Chen, Zhengyi and Chen, Ruqing},
-  title     = {Statistical Pharmacology via Kakutani Dichotomy IX: Notch-Sparing Gamma-Secretase Modulators for Alzheimer's Disease},
+  title     = {Statistical Pharmacology via Kakutani Dichotomy IX: Notch-Sparing Gamma-Secretase Modulators for Alzheimer's Disease, Schur-Complement Confinement of the Catalytic Block, and a Cone-Geodesic Model of Processive Trimming},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.23051518},
